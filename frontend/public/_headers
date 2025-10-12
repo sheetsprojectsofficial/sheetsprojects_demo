@@ -1,0 +1,16 @@
+/*
+  X-Frame-Options: DENY
+  X-XSS-Protection: 1; mode=block
+  X-Content-Type-Options: nosniff
+
+/assets/*.js
+  Content-Type: text/javascript; charset=utf-8
+
+/*.js
+  Content-Type: text/javascript; charset=utf-8
+
+/*.mjs  
+  Content-Type: text/javascript; charset=utf-8
+
+/*.jsx
+  Content-Type: text/javascript; charset=utf-8
