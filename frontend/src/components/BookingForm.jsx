@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import axios from 'axios';
 import { useSettings } from '../context/SettingsContext';
 import { useAuth } from '../context/AuthContext';
+import { convertImageUrl } from '../utils/imageUtils';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001';
 
@@ -253,6 +254,7 @@ const BookingForm = () => {
   // Get hotel details from settings
   const hotelName = settings?.['Hotel Name']?.value || 'Our Hotel';
   const hotelImage = settings?.['Hotel Image']?.value || '';
+  const convertedImageUrl = convertImageUrl(hotelImage);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-12 px-4 sm:px-6 lg:px-8">
@@ -273,13 +275,14 @@ const BookingForm = () => {
             </div>
 
             {/* Hotel Image */}
-            {hotelImage && (
+            {hotelImage && convertedImageUrl && (
               <div className="bg-white rounded-2xl shadow-xl p-4 overflow-hidden">
                 <img
-                  src={hotelImage}
+                  src={convertedImageUrl}
                   alt={hotelName}
-                  className="w-full h-auto rounded-lg object-cover"
+                  className="w-full h-auto rounded-lg object-cover max-h-96"
                   onError={(e) => {
+                    console.error('Failed to load image from:', convertedImageUrl);
                     e.target.style.display = 'none';
                   }}
                 />

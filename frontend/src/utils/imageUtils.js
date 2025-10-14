@@ -53,7 +53,7 @@ const extractGoogleDriveFileId = (url) => {
 /**
  * Converts various image URL formats to usable direct URLs
  * Handles Google Drive URLs, Google redirects, and other formats
- * 
+ *
  * @param {string} url - Original image URL
  * @returns {string} Direct usable URL or original URL
  */
@@ -65,10 +65,11 @@ export const convertImageUrl = (url) => {
     return url; // Return base64 data URL as-is
   }
 
-  // Handle Google Drive URLs
+  // Handle Google Drive URLs - use the most reliable format
   const fileId = extractGoogleDriveFileId(url);
   if (fileId) {
-    return `https://lh3.googleusercontent.com/d/${fileId}=w400-h400-p-k-no-nu`;
+    // Use thumbnail format which works best for publicly shared images
+    return `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000`;
   }
 
   // Handle Google redirect URLs (e.g., www.google.com/url?...)
