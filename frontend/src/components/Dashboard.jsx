@@ -8,6 +8,7 @@ import AdminBooks from './AdminBooks';
 import Orders from './Orders';
 import CustomerDashboard from './CustomerDashboard';
 import AdminBookings from './AdminBookings';
+import { toast } from 'react-toastify';
 
 const Dashboard = () => {
   const { user, isAdmin, logout } = useAuth();
@@ -15,6 +16,8 @@ const Dashboard = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'landing');
+  const [syncing, setSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState('');
 
   useEffect(() => {
     const tab = searchParams.get('tab') || 'landing';
@@ -53,6 +56,127 @@ const Dashboard = () => {
       navigate('/');
     } catch (error) {
       console.error('Error logging out:', error);
+    }
+  };
+
+  const syncAll = async () => {
+    if (!user || !isAdmin()) return;
+
+    setSyncing(true);
+    setSyncStatus('Starting sync...');
+    const results = {
+      products: { success: false, message: '' },
+      blogs: { success: false, message: '' },
+      books: { success: false, message: '' },
+      orders: { success: false, message: '' },
+      bookings: { success: false, message: '' }
+    };
+
+    try {
+      const token = await user.getIdToken();
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      };
+
+      // Sync Products (just refresh the data)
+      setSyncStatus('Syncing products...');
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/products`, { headers });
+        const data = await response.json();
+        results.products.success = data.success;
+        results.products.message = data.success ? 'Products refreshed' : 'Products failed';
+      } catch (error) {
+        results.products.message = `Products error: ${error.message}`;
+      }
+
+      // Sync Blogs
+      setSyncStatus('Syncing blogs from Drive...');
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/blog/admin/sync`, {
+          method: 'POST',
+          headers
+        });
+        const data = await response.json();
+        results.blogs.success = data.success;
+        results.blogs.message = data.success
+          ? `Blogs: Created ${data.syncResults?.created || 0}, Updated ${data.syncResults?.updated || 0}`
+          : 'Blogs sync failed';
+      } catch (error) {
+        results.blogs.message = `Blogs error: ${error.message}`;
+      }
+
+      // Sync Books
+      setSyncStatus('Syncing books from Drive...');
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/books/admin/sync`, {
+          method: 'POST',
+          headers
+        });
+        const data = await response.json();
+        results.books.success = data.success;
+        results.books.message = data.success
+          ? `Books: Created ${data.syncResults?.created || 0}, Updated ${data.syncResults?.updated || 0}`
+          : 'Books sync failed';
+      } catch (error) {
+        results.books.message = `Books error: ${error.message}`;
+      }
+
+      // Sync Orders Solution Links
+      setSyncStatus('Syncing order solutions...');
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/orders/solution/sync-from-sheets`, {
+          method: 'POST',
+          headers
+        });
+        const data = await response.json();
+        results.orders.success = data.success;
+        results.orders.message = data.success
+          ? `Orders: ${data.details?.ordersUpdated || 0} updated`
+          : 'Orders sync failed';
+      } catch (error) {
+        results.orders.message = `Orders error: ${error.message}`;
+      }
+
+      // Sync Bookings (refresh)
+      setSyncStatus('Refreshing bookings...');
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5004'}/api/bookings`, {
+          headers
+        });
+        const data = await response.json();
+        results.bookings.success = data.success;
+        results.bookings.message = data.success ? 'Bookings refreshed' : 'Bookings failed';
+      } catch (error) {
+        results.bookings.message = `Bookings error: ${error.message}`;
+      }
+
+      // Show summary
+      const successCount = Object.values(results).filter(r => r.success).length;
+      const totalCount = Object.keys(results).length;
+
+      if (successCount === totalCount) {
+        toast.success(`✅ All data synced successfully!`);
+      } else {
+        toast.warning(`⚠️ Sync completed with some issues (${successCount}/${totalCount} successful)`);
+      }
+
+      setSyncStatus('Sync completed!');
+
+      // Reload the current page after a brief delay
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+
+    } catch (error) {
+      console.error('Error during sync:', error);
+      toast.error('❌ Sync failed: ' + error.message);
+      setSyncStatus('Sync failed');
+    } finally {
+      setTimeout(() => {
+        setSyncing(false);
+        setSyncStatus('');
+      }, 2000);
     }
   };
 
@@ -219,13 +343,38 @@ const Dashboard = () => {
                 </span>
               </div>
               <div className="flex items-center space-x-2 sm:space-x-3">
-                <button 
+                {isAdmin() && (
+                  <button
+                    onClick={syncAll}
+                    disabled={syncing}
+                    className="px-3 py-2 sm:px-4 cursor-pointer text-xs sm:text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-md whitespace-nowrap"
+                    title="Sync all data sources (Products, Blogs, Books, Orders, Bookings)"
+                  >
+                    {syncing ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span className="hidden sm:inline">{syncStatus}</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        <span>Sync All</span>
+                      </>
+                    )}
+                  </button>
+                )}
+                <button
                   onClick={() => navigate('/')}
                   className="px-3 py-2 sm:px-4 cursor-pointer text-xs sm:text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors whitespace-nowrap"
                 >
                   View Site
                 </button>
-                <button 
+                <button
                   onClick={handleLogout}
                   className="px-3 py-2 sm:px-4 cursor-pointer text-xs sm:text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
                 >
