@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import axios from 'axios';
 import { useSettings } from '../context/SettingsContext';
 import { useAuth } from '../context/AuthContext';
-import { convertImageUrl } from '../utils/imageUtils';
+import { optimizeImageUrl } from '../utils/imageUtils';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001';
 
@@ -35,6 +35,7 @@ const BookingForm = () => {
   const [checkingAvailability, setCheckingAvailability] = useState(false);
   const [isRoomAvailable, setIsRoomAvailable] = useState(null);
   const [availabilityMessage, setAvailabilityMessage] = useState('');
+  const [imageError, setImageError] = useState(false);
 
   // Get primary and secondary colors from settings
   const primaryColor = settings?.primaryColor?.value || '#6366f1';
@@ -254,7 +255,6 @@ const BookingForm = () => {
   // Get hotel details from settings
   const hotelName = settings?.['Hotel Name']?.value || 'Our Hotel';
   const hotelImage = settings?.['Hotel Image']?.value || '';
-  const convertedImageUrl = convertImageUrl(hotelImage);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-12 px-4 sm:px-6 lg:px-8">
@@ -275,17 +275,42 @@ const BookingForm = () => {
             </div>
 
             {/* Hotel Image */}
-            {hotelImage && convertedImageUrl && (
-              <div className="bg-white rounded-2xl shadow-xl p-4 overflow-hidden">
-                <img
-                  src={convertedImageUrl}
-                  alt={hotelName}
-                  className="w-full h-auto rounded-lg object-cover max-h-96"
-                  onError={(e) => {
-                    console.error('Failed to load image from:', convertedImageUrl);
-                    e.target.style.display = 'none';
-                  }}
-                />
+            {hotelImage && (
+              <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+                {!imageError ? (
+                  <div className="relative rounded-2xl overflow-hidden shadow-2xl hotel-image-container">
+                    <img
+                      src={optimizeImageUrl(hotelImage, { width: 800, height: 600 })}
+                      alt={hotelName}
+                      className="w-full h-96 object-cover rounded-2xl"
+                      crossOrigin="anonymous"
+                      referrerPolicy="no-referrer"
+                      onLoad={(e) => {
+                        e.target.style.display = 'block';
+                      }}
+                      onError={(e) => {
+                        console.error('Hotel image failed to load:', e.target.src);
+                        setImageError(true);
+                      }}
+                    />
+                    {/* Gradient overlay for better visual appeal */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-2xl"></div>
+                  </div>
+                ) : (
+                  <div className="hotel-fallback bg-gradient-to-br from-indigo-900 via-indigo-800 to-indigo-900 rounded-2xl p-8 lg:p-12 shadow-2xl relative overflow-hidden h-96 flex items-center justify-center">
+                    {/* Decorative elements */}
+                    <div className="absolute top-0 left-0 w-32 h-32 bg-indigo-500 opacity-20 rounded-full -translate-x-16 -translate-y-16"></div>
+                    <div className="absolute bottom-0 right-0 w-24 h-24 bg-indigo-500 opacity-20 rounded-full translate-x-12 translate-y-12"></div>
+
+                    {/* Hotel Name Display */}
+                    <div className="relative z-10 text-center">
+                      <h3 className="text-3xl lg:text-4xl font-bold text-white">
+                        {hotelName}
+                      </h3>
+                      <p className="text-indigo-200 mt-2">Welcome to our hotel</p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

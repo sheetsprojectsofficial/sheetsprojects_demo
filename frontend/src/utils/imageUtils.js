@@ -5,7 +5,7 @@
  * Optimized for SEO, performance, and cross-browser compatibility
  * 
  * @author SheetsProjects.com
- * @version 2.0.0
+ * @version 2.0.1
  */
 
 /**
@@ -20,29 +20,26 @@ const extractGoogleDriveFileId = (url) => {
 
   // Comprehensive patterns for different Google Drive URL formats
   const patterns = [
-    // More flexible pattern for file IDs - catches most variations first
-    /\/file\/d\/([a-zA-Z0-9_-]{20,})(?:\/|$|\?)/,
     // Standard sharing URL: https://drive.google.com/file/d/FILE_ID/view
-    /\/file\/d\/([a-zA-Z0-9_-]{25,})/,
-    // Standard sharing URL with parameters: https://drive.google.com/file/d/FILE_ID/view?usp=drive_link
-    /\/file\/d\/([a-zA-Z0-9_-]{25,})\/view/,
+    // This pattern is more flexible and handles shorter file IDs
+    /\/file\/d\/([a-zA-Z0-9_-]{15,})/,
     // Query parameter format: ?id=FILE_ID
-    /[?&]id=([a-zA-Z0-9_-]{25,})/,
+    /[?&]id=([a-zA-Z0-9_-]{15,})/,
     // Direct access format: /d/FILE_ID
-    /\/d\/([a-zA-Z0-9_-]{25,})/,
+    /\/d\/([a-zA-Z0-9_-]{15,})/,
     // Thumbnail format: /thumbnail?id=FILE_ID
-    /thumbnail\?id=([a-zA-Z0-9_-]{25,})/,
+    /thumbnail\?id=([a-zA-Z0-9_-]{15,})/,
     // Open URL format: /open?id=FILE_ID
-    /open\?id=([a-zA-Z0-9_-]{25,})/,
+    /open\?id=([a-zA-Z0-9_-]{15,})/,
     // UC export format: uc?id=FILE_ID
-    /uc\?.*id=([a-zA-Z0-9_-]{25,})/,
-    // Canva export format (sometimes contains Google Drive IDs)
-    /canva\.com.*[?&].*([a-zA-Z0-9_-]{25,})/
+    /uc\?.*id=([a-zA-Z0-9_-]{15,})/,
+    // General file ID pattern - catches most variations
+    /\/file\/d\/([a-zA-Z0-9_-]{15,})(?:\/|$|\?)/,
   ];
 
   for (const pattern of patterns) {
     const match = url.match(pattern);
-    if (match && match[1] && match[1].length >= 20) {
+    if (match && match[1] && match[1].length >= 15) {
       return match[1];
     }
   }
@@ -60,6 +57,7 @@ const extractGoogleDriveFileId = (url) => {
 export const convertImageUrl = (url) => {
   if (!url || typeof url !== 'string') return url;
 
+
   // Handle base64 data URLs (from Google Sheets image uploads)
   if (url.startsWith('data:image/')) {
     return url; // Return base64 data URL as-is
@@ -68,8 +66,10 @@ export const convertImageUrl = (url) => {
   // Handle Google Drive URLs - use the most reliable format
   const fileId = extractGoogleDriveFileId(url);
   if (fileId) {
-    // Use thumbnail format which works best for publicly shared images
-    return `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000`;
+    
+    // Use the most reliable format for public images
+    const convertedUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
+    return convertedUrl;
   }
 
   // Handle Google redirect URLs (e.g., www.google.com/url?...)
@@ -79,11 +79,9 @@ export const convertImageUrl = (url) => {
       const redirectUrl = urlParams.get('url');
       if (redirectUrl) {
         const decodedUrl = decodeURIComponent(redirectUrl);
-        console.log('Decoded redirect URL:', decodedUrl);
 
         // Check if the decoded URL is a Canva or other design tool URL
         if (decodedUrl.includes('canva.com') || decodedUrl.includes('create') || decodedUrl.includes('logos')) {
-          console.warn('Logo URL points to a Canva design page, not a direct image. Please use a direct image URL instead.');
           return null; // Return null to show fallback icon
         }
 
@@ -103,8 +101,6 @@ export const convertImageUrl = (url) => {
 
   // If it doesn't look like a direct image URL, warn and return null
   if (!hasImageExtension && !url.includes('googleusercontent.com') && !url.includes('drive.google.com')) {
-    console.warn('Logo URL does not appear to be a direct image URL:', url);
-    console.warn('Please use a direct image URL (ending in .jpg, .png, etc.) or a Google Drive sharing URL');
     return null; // Return null to show fallback icon
   }
 
@@ -185,3 +181,5 @@ export const optimizeImageUrl = (url, options = {}) => {
   
   return `https://lh3.googleusercontent.com/d/${fileId}=${sizeParam}-${cropParam}-k-no-nu`;
 };
+
+export { extractGoogleDriveFileId };
