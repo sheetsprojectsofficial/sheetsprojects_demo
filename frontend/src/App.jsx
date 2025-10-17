@@ -36,6 +36,7 @@ import SEOManager from "./components/SEOManager";
 import ScrollToTop from "./components/ScrollToTop";
 import BookingForm from "./components/BookingForm";
 import MyBookings from "./components/MyBookings";
+import Invoices from "./components/Invoices";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import "./App.css";
@@ -108,6 +109,7 @@ function App() {
                               <Route path="/contact" element={<ContactUs />} />
                               <Route path="/bookings" element={<BookingForm />} />
                               <Route path="/my-bookings" element={<MyBookings />} />
+                              <Route path="/invoices" element={<Invoices />} />
                               <Route
                                 path="/checkout/:id"
                                 element={<Checkout />}
