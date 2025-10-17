@@ -7,10 +7,24 @@ import html2canvas from 'html2canvas';
 const Invoices = () => {
   const { settings } = useSettings();
   const { brandColors } = useBrand();
-  
+
   // Get dynamic colors from brand context with fallbacks
   const primaryColor = brandColors?.primary || settings?.primaryColor?.value || '#6366f1';
   const secondaryColor = brandColors?.secondary || settings?.secondaryColor?.value || '#8b5cf6';
+
+  // Currency list - hardcoded for now
+  const currencies = [
+    { code: 'INR', symbol: '₹', name: 'Indian Rupee' },
+    { code: 'USD', symbol: '$', name: 'US Dollar' },
+    { code: 'EUR', symbol: '€', name: 'Euro' },
+    { code: 'GBP', symbol: '£', name: 'British Pound' },
+    { code: 'JPY', symbol: '¥', name: 'Japanese Yen' },
+    { code: 'AUD', symbol: 'A$', name: 'Australian Dollar' },
+    { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar' },
+    { code: 'CHF', symbol: 'Fr', name: 'Swiss Franc' },
+    { code: 'CNY', symbol: '¥', name: 'Chinese Yuan' },
+    { code: 'AED', symbol: 'د.إ', name: 'UAE Dirham' }
+  ];
 
   // Step state
   const [currentStep, setCurrentStep] = useState(1);
@@ -30,6 +44,7 @@ const Invoices = () => {
     invoiceNumber: '',
     invoiceDate: '',
     dueDate: '',
+    currency: 'INR', // Default currency
     discount: 0,
     bankName: '',
     accountNumber: '',
@@ -40,6 +55,12 @@ const Invoices = () => {
   const [items, setItems] = useState([
     { id: 1, itemName: '', description: '', price: 0 }
   ]);
+
+  // Get currency symbol based on selected currency
+  const getCurrencySymbol = () => {
+    const currency = currencies.find(c => c.code === formData.currency);
+    return currency ? currency.symbol : '₹';
+  };
 
   // Calculate subtotal
   const calculateSubtotal = () => {
@@ -688,6 +709,24 @@ const Invoices = () => {
                       className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Currency <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      name="currency"
+                      value={formData.currency}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      {currencies.map((currency) => (
+                        <option key={currency.code} value={currency.code}>
+                          {currency.symbol} - {currency.name} ({currency.code})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   </div>
 
                   {/* Navigation Buttons */}
@@ -1017,7 +1056,7 @@ const Invoices = () => {
                           {item.description || '{{description1}}'}
                         </td>
                         <td className="border border-gray-400 px-3 py-2 text-right whitespace-nowrap">
-                          {item.price > 0 ? `₹${parseFloat(item.price).toFixed(2)}` : '{{price1}}'}
+                          {item.price > 0 ? `${getCurrencySymbol()}${parseFloat(item.price).toFixed(2)}` : '{{price1}}'}
                         </td>
                       </tr>
                     ))}
@@ -1034,16 +1073,16 @@ const Invoices = () => {
               <div className="mb-6">
                 <div className="flex justify-end items-center mb-2 gap-4">
                   <span className="text-sm font-semibold min-w-[100px] text-right">Subtotal:</span>
-                  <span className="text-sm font-medium min-w-[120px] text-right">₹{calculateSubtotal().toFixed(2)}</span>
+                  <span className="text-sm font-medium min-w-[120px] text-right">{getCurrencySymbol()}{calculateSubtotal().toFixed(2)}</span>
                 </div>
                 <div className="flex justify-end items-center mb-2 gap-4">
                   <span className="text-sm font-semibold min-w-[100px] text-right">Discount:</span>
-                  <span className="text-sm font-medium min-w-[120px] text-right">₹{parseFloat(formData.discount || 0).toFixed(2)}</span>
+                  <span className="text-sm font-medium min-w-[120px] text-right">{getCurrencySymbol()}{parseFloat(formData.discount || 0).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-end items-center gap-4">
                   <span className="text-base font-bold min-w-[100px] text-right">Balance Due:</span>
                   <span className="text-base font-bold min-w-[120px] text-right bg-gray-200 px-3 py-2 rounded">
-                    ₹{calculateBalanceDue().toFixed(2)}
+                    {getCurrencySymbol()}{calculateBalanceDue().toFixed(2)}
                   </span>
                 </div>
               </div>
