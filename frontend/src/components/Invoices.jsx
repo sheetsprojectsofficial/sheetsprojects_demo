@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useSettings } from '../context/SettingsContext';
+import { useBrand } from '../context/BrandContext';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
 const Invoices = () => {
   const { settings } = useSettings();
-  const primaryColor = settings?.primaryColor?.value || '#6366f1';
-  const secondaryColor = settings?.secondaryColor?.value || '#8b5cf6';
+  const { brandColors } = useBrand();
+  
+  // Get dynamic colors from brand context with fallbacks
+  const primaryColor = brandColors?.primary || settings?.primaryColor?.value || '#6366f1';
+  const secondaryColor = brandColors?.secondary || settings?.secondaryColor?.value || '#8b5cf6';
 
   // Step state
   const [currentStep, setCurrentStep] = useState(1);
@@ -244,6 +248,13 @@ const Invoices = () => {
     }
   };
 
+  // Inject dynamic CSS custom properties
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty('--brand-primary', primaryColor);
+    root.style.setProperty('--brand-secondary', secondaryColor);
+  }, [primaryColor, secondaryColor]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-8 px-4 sm:px-6 lg:px-8">
       <div className="mx-auto">
@@ -318,7 +329,7 @@ const Invoices = () => {
       <div 
         className="h-full transition-all duration-300"
         style={{
-          backgroundColor: primaryColor,
+          backgroundColor: 'var(--brand-primary, ' + primaryColor + ')',
           width: `${((currentStep - 1) / 5) * 100}%`
         }}
       />
@@ -333,13 +344,16 @@ const Invoices = () => {
               ? 'text-white'
               : 'bg-gray-200 text-gray-600'
           }`}
-          style={currentStep >= step ? { backgroundColor: primaryColor } : {}}>
+          style={currentStep >= step ? { 
+            backgroundColor: 'var(--brand-primary, ' + primaryColor + ')',
+            color: 'var(--brand-secondary, white)'
+          } : {}}>
             {step}
           </div>
           <span className={`text-xs text-center whitespace-nowrap ${
             currentStep === step ? 'font-semibold' : 'text-gray-600'
           }`}
-          style={currentStep === step ? { color: primaryColor } : {}}>
+          style={currentStep === step ? { color: 'var(--brand-primary, ' + primaryColor + ')' } : {}}>
             {step === 1 && 'Company'}
             {step === 2 && 'Bill To'}
             {step === 3 && 'Invoice Info'}
@@ -445,10 +459,7 @@ const Invoices = () => {
                       disabled={!isStep1Valid()}
                       className="w-full py-4 px-6 rounded-lg text-white font-semibold text-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none cursor-pointer"
                       style={{
-                        backgroundColor: isStep1Valid() ? primaryColor : '#9ca3af',
-                        backgroundImage: isStep1Valid()
-                          ? `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`
-                          : 'none'
+                        backgroundColor: isStep1Valid() ? 'var(--brand-primary, ' + primaryColor + ')' : '#9ca3af'
                       }}
                     >
                       Next: Bill To
@@ -542,7 +553,10 @@ const Invoices = () => {
                       type="button"
                       onClick={handlePrevStep}
                       className="flex-1 py-4 px-6 rounded-lg border-2 font-semibold text-lg transition-all duration-200 hover:bg-gray-50 cursor-pointer"
-                      style={{ borderColor: primaryColor, color: primaryColor }}
+                      style={{ 
+                        borderColor: 'var(--brand-primary, ' + primaryColor + ')', 
+                        color: 'var(--brand-primary, ' + primaryColor + ')'
+                      }}
                     >
                       Back
                     </button>
@@ -552,10 +566,7 @@ const Invoices = () => {
                       disabled={!isStep2Valid()}
                       className="flex-1 py-4 px-6 rounded-lg text-white font-semibold text-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none cursor-pointer"
                       style={{
-                        backgroundColor: isStep2Valid() ? primaryColor : '#9ca3af',
-                        backgroundImage: isStep2Valid()
-                          ? `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`
-                          : 'none'
+                        backgroundColor: isStep2Valid() ? 'var(--brand-primary, ' + primaryColor + ')' : '#9ca3af'
                       }}
                     >
                       Next: Invoice Info
@@ -619,7 +630,10 @@ const Invoices = () => {
                       type="button"
                       onClick={handlePrevStep}
                       className="flex-1 py-4 px-6 rounded-lg border-2 font-semibold text-lg transition-all duration-200 hover:bg-gray-50 cursor-pointer"
-                      style={{ borderColor: primaryColor, color: primaryColor }}
+                      style={{ 
+                        borderColor: 'var(--brand-primary, ' + primaryColor + ')', 
+                        color: 'var(--brand-primary, ' + primaryColor + ')'
+                      }}
                     >
                       Back
                     </button>
@@ -629,10 +643,7 @@ const Invoices = () => {
                       disabled={!isStep3Valid()}
                       className="flex-1 py-4 px-6 rounded-lg text-white font-semibold text-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none cursor-pointer"
                       style={{
-                        backgroundColor: isStep3Valid() ? primaryColor : '#9ca3af',
-                        backgroundImage: isStep3Valid()
-                          ? `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`
-                          : 'none'
+                        backgroundColor: isStep3Valid() ? 'var(--brand-primary, ' + primaryColor + ')' : '#9ca3af'
                       }}
                     >
                       Next: Items
@@ -650,7 +661,7 @@ const Invoices = () => {
                     type="button"
                     onClick={addItem}
                     className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2"
-                    style={{ backgroundColor: primaryColor }}
+                    style={{ backgroundColor: 'var(--brand-primary, ' + primaryColor + ')', cursor: 'pointer' }}
                   >
                     <span className="text-lg">+</span> Add Item
                   </button>
@@ -665,7 +676,8 @@ const Invoices = () => {
                           <button
                             type="button"
                             onClick={() => deleteItem(item.id)}
-                            className="text-red-500 hover:text-red-700 font-bold"
+                            className="text-red-500 hover:text-red-700 font-bold "
+                            style={{ cursor: 'pointer' }}
                           >
                             Delete
                           </button>
@@ -707,7 +719,10 @@ const Invoices = () => {
                       type="button"
                       onClick={handlePrevStep}
                       className="flex-1 py-4 px-6 rounded-lg border-2 font-semibold text-lg transition-all duration-200 hover:bg-gray-50 cursor-pointer"
-                      style={{ borderColor: primaryColor, color: primaryColor }}
+                      style={{ 
+                        borderColor: 'var(--brand-primary, ' + primaryColor + ')', 
+                        color: 'var(--brand-primary, ' + primaryColor + ')'
+                      }}
                     >
                       Back
                     </button>
@@ -717,10 +732,7 @@ const Invoices = () => {
                       disabled={!isStep4Valid()}
                       className="flex-1 py-4 px-6 rounded-lg text-white font-semibold text-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none cursor-pointer"
                       style={{
-                        backgroundColor: isStep4Valid() ? primaryColor : '#9ca3af',
-                        backgroundImage: isStep4Valid()
-                          ? `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`
-                          : 'none'
+                        backgroundColor: isStep4Valid() ? 'var(--brand-primary, ' + primaryColor + ')' : '#9ca3af'
                       }}
                     >
                       Next: Discount
@@ -758,7 +770,10 @@ const Invoices = () => {
                       type="button"
                       onClick={handlePrevStep}
                       className="flex-1 py-4 px-6 rounded-lg border-2 font-semibold text-lg transition-all duration-200 hover:bg-gray-50 cursor-pointer"
-                      style={{ borderColor: primaryColor, color: primaryColor }}
+                      style={{ 
+                        borderColor: 'var(--brand-primary, ' + primaryColor + ')', 
+                        color: 'var(--brand-primary, ' + primaryColor + ')'
+                      }}
                     >
                       Back
                     </button>
@@ -768,10 +783,7 @@ const Invoices = () => {
                       disabled={!isStep5Valid()}
                       className="flex-1 py-4 px-6 rounded-lg text-white font-semibold text-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none cursor-pointer"
                       style={{
-                        backgroundColor: isStep5Valid() ? primaryColor : '#9ca3af',
-                        backgroundImage: isStep5Valid()
-                          ? `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`
-                          : 'none'
+                        backgroundColor: isStep5Valid() ? 'var(--brand-primary, ' + primaryColor + ')' : '#9ca3af'
                       }}
                     >
                       Next: Bank Details
@@ -851,7 +863,10 @@ const Invoices = () => {
                       type="button"
                       onClick={handlePrevStep}
                       className="flex-1 py-4 px-6 rounded-lg border-2 font-semibold text-lg transition-all duration-200 hover:bg-gray-50 cursor-pointer"
-                      style={{ borderColor: primaryColor, color: primaryColor }}
+                      style={{ 
+                        borderColor: 'var(--brand-primary, ' + primaryColor + ')', 
+                        color: 'var(--brand-primary, ' + primaryColor + ')'
+                      }}
                     >
                       Back
                     </button>
@@ -860,8 +875,7 @@ const Invoices = () => {
                       onClick={handlePrint}
                       className="flex-1 py-4 px-6 rounded-lg text-white font-semibold text-lg transition-all duration-200 transform hover:scale-105 cursor-pointer"
                       style={{
-                        backgroundColor: primaryColor,
-                        backgroundImage: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`
+                        backgroundColor: 'var(--brand-primary, ' + primaryColor + ')'
                       }}
                     >
                       Print Invoice
@@ -873,8 +887,8 @@ const Invoices = () => {
                     <button
                       type="button"
                       onClick={handleDownloadPDF}
-                      className="w-full py-4 px-6 border-2 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold text-lg"
-                      style={{ borderColor: primaryColor }}
+                      className="cursor-pointer w-full py-4 px-6 border-2 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold text-lg"
+                      style={{ borderColor: 'var(--brand-primary, ' + primaryColor + ')' }}
                     >
                       Download PDF
                     </button>
@@ -898,10 +912,10 @@ const Invoices = () => {
                     />
                   </div>
                 )}
-                <h2 className="text-xl font-bold mb-2" style={{ color: '#5B7FD7' }}>
+                <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--brand-primary, ' + primaryColor + ')' }}>
                   {formData.companyName || 'Company Name'}
                 </h2>
-                <p className="text-sm mx-auto max-w-md break-words" style={{ color: '#5B7FD7' }}>
+                <p className="text-sm mx-auto max-w-md break-words" style={{ color: 'var(--brand-primary, ' + primaryColor + ')' }}>
                   {formData.companyAddress || 'Company Address'}
                 </p>
                 <p className="text-sm font-semibold mt-2">
@@ -912,7 +926,7 @@ const Invoices = () => {
               {/* Bill To and Invoice Details */}
               <div className="grid grid-cols-2 gap-6 mb-6">
                 <div className="min-w-0">
-                  <p className="text-base font-bold mb-2" style={{ color: '#5B7FD7' }}>
+                  <p className="text-base font-bold mb-2" style={{ color: 'var(--brand-primary, ' + primaryColor + ')' }}>
                     Bill To:
                   </p>
                   <div className="text-sm space-y-1">
