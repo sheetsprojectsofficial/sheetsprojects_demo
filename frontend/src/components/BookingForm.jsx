@@ -6,7 +6,9 @@ import { useSettings } from '../context/SettingsContext';
 import { useAuth } from '../context/AuthContext';
 import { optimizeImageUrl } from '../utils/imageUtils';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001';
+const API_BASE_URL = import.meta.env.VITE_API_URL|| 'http://localhost:5004';
+console.log(API_BASE_URL);
+
 
 const ROOM_INFO = {
   '1': { name: 'Standard Room', capacity: 2 },
@@ -122,7 +124,7 @@ const BookingForm = () => {
       const checkInDateTime = `${formData.checkInDate}T14:00`;
       const checkOutDateTime = `${formData.checkOutDate}T12:00`;
 
-      const response = await axios.post(`${API_BASE_URL}/api/bookings/check-availability`, {
+      const response = await axios.post(`${API_BASE_URL}/bookings/check-availability`, {
         roomNumber: formData.roomNumber,
         checkInDateTime: checkInDateTime,
         checkOutDateTime: checkOutDateTime
@@ -209,7 +211,7 @@ const BookingForm = () => {
         }))
       };
 
-      const response = await axios.post(`${API_BASE_URL}/api/bookings`, bookingData);
+      const response = await axios.post(`${API_BASE_URL}/bookings`, bookingData);
 
       if (response.data.success) {
         toast.success('Booking confirmed successfully!');
@@ -251,6 +253,13 @@ const BookingForm = () => {
     const day = String(now.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
+
+  // Inject dynamic CSS custom properties
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty('--brand-primary', primaryColor);
+    root.style.setProperty('--brand-secondary', secondaryColor);
+  }, [primaryColor, secondaryColor]);
 
   // Get hotel details from settings
   const hotelName = settings?.['Hotel Name']?.value || 'Our Hotel';
@@ -330,38 +339,48 @@ const BookingForm = () => {
           </div>
 
           {/* Right Column - Booking Form */}
-          <div className="bg-white rounded-2xl shadow-xl p-8">
+          <div className="bg-white rounded-2xl shadow-xl p-8 h-fit">
             {/* Step Indicator */}
             <div className="mb-8">
-              <div className="flex items-center">
-                {[1, 2, 3, 4].map((step, index) => (
-                  <React.Fragment key={step}>
-                    <div className="flex flex-col items-center">
-                      <div className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold ${
+              <div className="relative px-8">
+                {/* Progress Line */}
+                <div className="absolute top-5 left-8 right-8 h-1 bg-gray-200">
+                  <div
+                    className="h-full transition-all duration-300"
+                    style={{
+                      backgroundColor: 'var(--brand-primary, ' + primaryColor + ')',
+                      width: `${((currentStep - 1) / 3) * 100}%`
+                    }}
+                  />
+                </div>
+
+                {/* Steps */}
+                <div className="relative flex justify-between space-x-4">
+                  {[1, 2, 3, 4].map((step) => (
+                    <div key={step} className="flex flex-col items-center">
+                      <div className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold mb-2 relative z-10 ${
                         currentStep >= step
                           ? 'text-white'
                           : 'bg-gray-200 text-gray-600'
                       }`}
-                      style={currentStep >= step ? { backgroundColor: primaryColor } : {}}>
+                      style={currentStep >= step ? {
+                        backgroundColor: 'var(--brand-primary, ' + primaryColor + ')',
+                        color: 'var(--brand-secondary, white)'
+                      } : {}}>
                         {step}
                       </div>
-                      <span className={`mt-2 text-xs text-center whitespace-nowrap ${
-                        currentStep === step ? 'font-semibold text-gray-900' : 'text-gray-600'
-                      }`}>
+                      <span className={`text-xs text-center whitespace-nowrap ${
+                        currentStep === step ? 'font-semibold' : 'text-gray-600'
+                      }`}
+                      style={currentStep === step ? { color: 'var(--brand-primary, ' + primaryColor + ')' } : {}}>
                         {step === 1 && 'Room & Dates'}
                         {step === 2 && 'Guests'}
                         {step === 3 && 'Guest Details'}
                         {step === 4 && 'Contact'}
                       </span>
                     </div>
-                    {step < 4 && (
-                      <div className={`flex-1 h-1 mx-2 ${
-                        currentStep > step ? 'bg-opacity-100' : 'bg-gray-200'
-                      }`}
-                      style={currentStep > step ? { backgroundColor: primaryColor } : {}}></div>
-                    )}
-                  </React.Fragment>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -478,10 +497,7 @@ const BookingForm = () => {
                       disabled={!isRoomAvailable || checkingAvailability}
                       className="w-full py-4 px-6 rounded-lg text-white font-semibold text-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none cursor-pointer"
                       style={{
-                        backgroundColor: isRoomAvailable === true ? primaryColor : '#9ca3af',
-                        backgroundImage: isRoomAvailable === true
-                          ? `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`
-                          : 'none'
+                        backgroundColor: isRoomAvailable === true ? 'var(--brand-primary, ' + primaryColor + ')' : '#9ca3af'
                       }}
                     >
                       Next: Select Guests
@@ -528,8 +544,11 @@ const BookingForm = () => {
                     <button
                       type="button"
                       onClick={handlePrevStep}
-                      className="flex-1 py-4 px-6 rounded-lg border-2 text-gray-700 font-semibold text-lg transition-all duration-200 hover:bg-gray-50 cursor-pointer"
-                      style={{ borderColor: primaryColor }}
+                      className="flex-1 py-4 px-6 rounded-lg border-2 font-semibold text-lg transition-all duration-200 hover:bg-gray-50 cursor-pointer"
+                      style={{
+                        borderColor: 'var(--brand-primary, ' + primaryColor + ')',
+                        color: 'var(--brand-primary, ' + primaryColor + ')'
+                      }}
                     >
                       Back
                     </button>
@@ -539,10 +558,7 @@ const BookingForm = () => {
                       disabled={!formData.numberOfAdults}
                       className="flex-1 py-4 px-6 rounded-lg text-white font-semibold text-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none cursor-pointer"
                       style={{
-                        backgroundColor: formData.numberOfAdults ? primaryColor : '#9ca3af',
-                        backgroundImage: formData.numberOfAdults
-                          ? `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`
-                          : 'none'
+                        backgroundColor: formData.numberOfAdults ? 'var(--brand-primary, ' + primaryColor + ')' : '#9ca3af'
                       }}
                     >
                       Next: Guest Details
@@ -623,8 +639,11 @@ const BookingForm = () => {
                     <button
                       type="button"
                       onClick={handlePrevStep}
-                      className="flex-1 py-4 px-6 rounded-lg border-2 text-gray-700 font-semibold text-lg transition-all duration-200 hover:bg-gray-50 cursor-pointer"
-                      style={{ borderColor: primaryColor }}
+                      className="flex-1 py-4 px-6 rounded-lg border-2 font-semibold text-lg transition-all duration-200 hover:bg-gray-50 cursor-pointer"
+                      style={{
+                        borderColor: 'var(--brand-primary, ' + primaryColor + ')',
+                        color: 'var(--brand-primary, ' + primaryColor + ')'
+                      }}
                     >
                       Back
                     </button>
@@ -633,8 +652,7 @@ const BookingForm = () => {
                       onClick={handleNextStep}
                       className="flex-1 py-4 px-6 rounded-lg text-white font-semibold text-lg transition-all duration-200 transform hover:scale-105 cursor-pointer"
                       style={{
-                        backgroundColor: primaryColor,
-                        backgroundImage: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`
+                        backgroundColor: 'var(--brand-primary, ' + primaryColor + ')'
                       }}
                     >
                       Next: Contact Details
@@ -720,8 +738,11 @@ const BookingForm = () => {
                     <button
                       type="button"
                       onClick={handlePrevStep}
-                      className="flex-1 py-4 px-6 rounded-lg border-2 text-gray-700 font-semibold text-lg transition-all duration-200 hover:bg-gray-50 cursor-pointer"
-                      style={{ borderColor: primaryColor }}
+                      className="flex-1 py-4 px-6 rounded-lg border-2 font-semibold text-lg transition-all duration-200 hover:bg-gray-50 cursor-pointer"
+                      style={{
+                        borderColor: 'var(--brand-primary, ' + primaryColor + ')',
+                        color: 'var(--brand-primary, ' + primaryColor + ')'
+                      }}
                     >
                       Back
                     </button>
@@ -730,8 +751,7 @@ const BookingForm = () => {
                       disabled={loading}
                       className="flex-1 py-4 px-6 rounded-lg text-white font-semibold text-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none cursor-pointer"
                       style={{
-                        backgroundColor: primaryColor,
-                        backgroundImage: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`
+                        backgroundColor: 'var(--brand-primary, ' + primaryColor + ')'
                       }}
                     >
                       {loading ? (
