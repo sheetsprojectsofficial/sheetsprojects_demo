@@ -33,8 +33,7 @@ const Invoices = () => {
     discount: 0,
     bankName: '',
     accountNumber: '',
-    ifscCode: '',
-    casil: ''
+    ifscCode: ''
   });
 
   // Items state - start with one row
@@ -54,13 +53,64 @@ const Invoices = () => {
     return subtotal - discount;
   };
 
-  // Handle form input changes
+  // Validation helper functions
+  const validateAlphabetsOnly = (value) => {
+    return /^[a-zA-Z\s]*$/.test(value);
+  };
+
+  const validateNumbersOnly = (value) => {
+    return /^[0-9]*$/.test(value);
+  };
+
+  const validatePhone = (value) => {
+    // Allow only numbers and validate length
+    if (!/^[0-9]*$/.test(value)) return false;
+    if (value.length === 0) return true; // Allow empty
+    if (value.startsWith('0')) {
+      return value.length <= 11;
+    }
+    return value.length <= 10;
+  };
+
+  const validateEmail = (value) => {
+    // Basic email validation
+    return /^[^\s@]*@?[^\s@]*\.?[^\s@]*$/.test(value);
+  };
+
+  // Handle form input changes with validation
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+
+    // Apply validation based on field name
+    let isValid = true;
+
+    switch(name) {
+      case 'companyName':
+      case 'billToName':
+      case 'billToCompanyName':
+      case 'bankName':
+        isValid = validateAlphabetsOnly(value);
+        break;
+      case 'billToPhone':
+        isValid = validatePhone(value);
+        break;
+      case 'billToEmail':
+        isValid = validateEmail(value);
+        break;
+      case 'invoiceNumber':
+      case 'accountNumber':
+        isValid = validateNumbersOnly(value);
+        break;
+      default:
+        isValid = true;
+    }
+
+    if (isValid) {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
 
   // Handle image upload
@@ -81,6 +131,11 @@ const Invoices = () => {
 
   // Handle item changes
   const handleItemChange = (id, field, value) => {
+    // Validate item name (only alphabets and spaces)
+    if (field === 'itemName' && !validateAlphabetsOnly(value)) {
+      return;
+    }
+
     setItems(prevItems =>
       prevItems.map(item =>
         item.id === id ? { ...item, [field]: value } : item
@@ -113,12 +168,22 @@ const Invoices = () => {
   };
 
   const isStep2Valid = () => {
+    const phoneValid = formData.billToPhone &&
+                      (formData.billToPhone.startsWith('0') ?
+                       formData.billToPhone.length === 11 :
+                       formData.billToPhone.length === 10);
+    const emailValid = formData.billToEmail &&
+                      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.billToEmail);
     return formData.billToName && formData.billToCompanyName && formData.billToAddress &&
-           formData.billToPhone && formData.billToEmail;
+           phoneValid && emailValid;
   };
 
   const isStep3Valid = () => {
-    return formData.invoiceNumber && formData.invoiceDate && formData.dueDate;
+    if (!formData.invoiceNumber || !formData.invoiceDate || !formData.dueDate) {
+      return false;
+    }
+    // Ensure due date is not before invoice date
+    return new Date(formData.dueDate) >= new Date(formData.invoiceDate);
   };
 
   const isStep4Valid = () => {
@@ -130,7 +195,7 @@ const Invoices = () => {
   };
 
   const isStep6Valid = () => {
-    return formData.bankName && formData.accountNumber && formData.ifscCode && formData.casil;
+    return formData.bankName && formData.accountNumber && formData.ifscCode;
   };
 
   // Step navigation functions
@@ -408,7 +473,7 @@ const Invoices = () => {
                   {/* Company Name */}
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Company Name
+                      Company Name <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -423,7 +488,7 @@ const Invoices = () => {
                   {/* Company Address */}
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Company Address
+                      Company Address <span className="text-red-500">*</span>
                     </label>
                     <textarea
                       name="companyAddress"
@@ -438,7 +503,7 @@ const Invoices = () => {
                   {/* GST No */}
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      GST No.
+                      GST No. <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -478,7 +543,7 @@ const Invoices = () => {
                   <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Name
+                      Name <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -492,7 +557,7 @@ const Invoices = () => {
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Company Name
+                      Company Name <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -506,7 +571,7 @@ const Invoices = () => {
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Street Address
+                      Street Address <span className="text-red-500">*</span>
                     </label>
                     <textarea
                       name="billToAddress"
@@ -520,7 +585,7 @@ const Invoices = () => {
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Phone
+                      Phone <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="tel"
@@ -534,7 +599,7 @@ const Invoices = () => {
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Email
+                      Email <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="email"
@@ -585,7 +650,7 @@ const Invoices = () => {
                   <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Invoice Number
+                      Invoice Number <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -599,7 +664,7 @@ const Invoices = () => {
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Invoice Date
+                      Invoice Date <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="date"
@@ -612,13 +677,14 @@ const Invoices = () => {
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Due Date
+                      Due Date <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="date"
                       name="dueDate"
                       value={formData.dueDate}
                       onChange={handleInputChange}
+                      min={formData.invoiceDate || ''}
                       className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -802,7 +868,7 @@ const Invoices = () => {
                   <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Bank Name
+                      Bank Name <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -816,7 +882,7 @@ const Invoices = () => {
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Account Number
+                      Account Number <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -830,7 +896,7 @@ const Invoices = () => {
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      IFSC Code
+                      IFSC Code <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -838,20 +904,6 @@ const Invoices = () => {
                       value={formData.ifscCode}
                       onChange={handleInputChange}
                       placeholder="Enter IFSC code"
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      CASIL
-                    </label>
-                    <input
-                      type="text"
-                      name="casil"
-                      value={formData.casil}
-                      onChange={handleInputChange}
-                      placeholder="Enter CASIL"
                       className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -1005,7 +1057,6 @@ const Invoices = () => {
                   <p className="break-words"><span className="font-medium">Bank:</span> {formData.bankName || 'Bank Name'}</p>
                   <p className="break-all"><span className="font-medium">A/c:</span> {formData.accountNumber || 'Account Number'}</p>
                   <p className="break-words"><span className="font-medium">IFSC:</span> {formData.ifscCode || 'IFSC Code'}</p>
-                  <p className="break-words"><span className="font-medium">CASIL:</span> {formData.casil || 'CASIL'}</p>
                 </div>
               </div>
             </div>
