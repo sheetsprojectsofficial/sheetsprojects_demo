@@ -355,10 +355,6 @@ const Invoices = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-8 px-4 sm:px-6 lg:px-8">
       <div className="mx-auto">
-        <div className="page-header text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Invoice Generator</h1>
-          <p className="text-lg text-gray-600">Create professional invoices instantly</p>
-        </div>
 
         {/* Print Styles */}
         <style jsx>{`

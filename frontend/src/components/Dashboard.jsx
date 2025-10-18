@@ -8,6 +8,7 @@ import AdminBooks from './AdminBooks';
 import Orders from './Orders';
 import CustomerDashboard from './CustomerDashboard';
 import AdminBookings from './AdminBookings';
+import Invoices from './Invoices';
 import { toast } from 'react-toastify';
 
 const Dashboard = () => {
@@ -15,14 +16,14 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'landing');
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || (isAdmin() ? 'landing' : 'purchases'));
   const [syncing, setSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState('');
 
   useEffect(() => {
-    const tab = searchParams.get('tab') || 'landing';
+    const tab = searchParams.get('tab') || (isAdmin() ? 'landing' : 'purchases');
     setActiveTab(tab);
-  }, [searchParams]);
+  }, [searchParams, isAdmin]);
 
   // Handle responsive sidebar behavior
   useEffect(() => {
@@ -276,12 +277,22 @@ const Dashboard = () => {
                 <div className="px-3 py-2">
                   <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">My Account</h3>
                 </div>
-                <div className="px-3 py-3 text-sm font-medium text-brand-primary bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-center">
-                    <span className="text-lg mr-3">🛒</span>
-                    <span className="flex-1 text-left">My Purchases</span>
-                  </div>
-                </div>
+                <button
+                  onClick={() => handleTabChange('purchases')}
+                  className={`${activeTab === 'purchases' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer px-3 py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full`}
+                  style={{ display: 'flex', alignItems: 'center', width: '100%' }}
+                >
+                  <span className="text-lg mr-3">🛒</span>
+                  <span className="flex-1 text-left">My Purchases</span>
+                </button>
+                <button
+                  onClick={() => handleTabChange('invoices')}
+                  className={`${activeTab === 'invoices' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer px-3 py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full`}
+                  style={{ display: 'flex', alignItems: 'center', width: '100%' }}
+                >
+                  <span className="text-lg mr-3">🧾</span>
+                  <span className="flex-1 text-left">Invoice</span>
+                </button>
               </nav>
             )}
           </div>
@@ -314,7 +325,10 @@ const Dashboard = () => {
                       {activeTab === 'bookings' && 'Room Bookings Management'}
                     </>
                   ) : (
-                    'My Purchases'
+                    <>
+                      {activeTab === 'purchases' && 'My Purchases'}
+                      {activeTab === 'invoices' && 'Invoice Generator'}
+                    </>
                   )}
                 </h2>
                 <p className="text-sm text-gray-500 hidden sm:block">
@@ -328,7 +342,10 @@ const Dashboard = () => {
                       {activeTab === 'bookings' && 'View and manage room bookings'}
                     </>
                   ) : (
-                    'View and access your purchased solutions'
+                    <>
+                      {activeTab === 'purchases' && 'View and access your purchased solutions'}
+                      {activeTab === 'invoices' && 'Create professional invoices instantly'}
+                    </>
                   )}
                 </p>
               </div>
@@ -387,7 +404,11 @@ const Dashboard = () => {
 
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto bg-gray-50 scroll-smooth min-h-0">
-          <div className="py-6 px-4 sm:px-6">
+          <div className={
+            activeTab === 'invoices'
+              ? ''
+              : 'py-6 px-4 sm:px-6'
+          }>
             <div className="max-w-7xl mx-auto">
               {isAdmin() ? (
                 <div className="space-y-6">
@@ -399,7 +420,10 @@ const Dashboard = () => {
                   {activeTab === 'bookings' && <AdminBookings />}
                 </div>
               ) : (
-                <CustomerDashboard />
+                <>
+                  {activeTab === 'purchases' && <CustomerDashboard />}
+                  {activeTab === 'invoices' && <Invoices />}
+                </>
               )}
             </div>
           </div>
