@@ -18,6 +18,7 @@ import commentRoutes from './comment.js';
 import bookRoutes from './book.js';
 import imageRoutes from './image.js';
 import bookingRoutes from './booking.js';
+import paymentRoutes from './payment.js';
 
 const router = express.Router();
 
@@ -82,5 +83,8 @@ router.use('/images', imageRoutes);
 
 // Mount booking routes
 router.use('/bookings', bookingRoutes);
+
+// Mount payment routes
+router.use('/payment', paymentRoutes);
 
 export default router; 

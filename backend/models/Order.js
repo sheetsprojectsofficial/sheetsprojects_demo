@@ -122,6 +122,19 @@ const orderSchema = new mongoose.Schema({
     enum: ['pending', 'completed', 'failed'],
     default: 'pending'
   },
+  // Razorpay Payment Details
+  razorpayOrderId: {
+    type: String,
+    default: null
+  },
+  razorpayPaymentId: {
+    type: String,
+    default: null
+  },
+  razorpaySignature: {
+    type: String,
+    default: null
+  },
   // Email notification status
   emailSent: {
     type: Boolean,
@@ -183,6 +196,34 @@ orderSchema.pre('save', function(next) {
   }
   this.updatedAt = Date.now();
   next();
+});
+
+// CASCADE DELETE: When an order is deleted, also delete related BookPurchase
+orderSchema.post('findOneAndDelete', async function(doc) {
+  if (doc && doc.itemType === 'book' && doc.bookInfo?.bookId) {
+    try {
+      const BookPurchase = mongoose.model('BookPurchase');
+      const customerEmail = doc.customerInfo?.email;
+
+      // Delete the BookPurchase record for this book and user
+      const result = await BookPurchase.deleteOne({
+        bookId: doc.bookInfo.bookId,
+        userEmail: customerEmail
+      });
+
+      if (result.deletedCount > 0) {
+        console.log(`✅ Cascade deleted BookPurchase for book ${doc.bookInfo.bookId} and user ${customerEmail}`);
+      }
+    } catch (error) {
+      console.error('Error in cascade delete of BookPurchase:', error);
+    }
+  }
+});
+
+// CASCADE DELETE: Handle deleteOne and deleteMany
+orderSchema.post('deleteOne', async function(result) {
+  // This runs after deleteOne, but we need to find the document first
+  // So we use findOneAndDelete instead in the controller
 });
 
 const Order = mongoose.model('Order', orderSchema);

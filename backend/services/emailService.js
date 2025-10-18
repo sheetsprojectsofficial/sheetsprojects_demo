@@ -247,7 +247,40 @@ export const sendAdminOrderNotification = async (customerInfo, productInfo, orde
   }
 };
 
+// Generic send email function
+export const sendEmail = async (to, subject, html) => {
+  try {
+    const transporter = createTransporter();
+
+    const mailOptions = {
+      from: {
+        name: 'SheetsProjects.com',
+        address: process.env.EMAIL_USER || 'sheetsprojectsofficial@gmail.com'
+      },
+      to: to,
+      subject: subject,
+      html: html
+    };
+
+    console.log('Sending email to:', to);
+    const result = await transporter.sendMail(mailOptions);
+    console.log('Email sent successfully:', result.messageId);
+
+    return {
+      success: true,
+      messageId: result.messageId
+    };
+  } catch (error) {
+    console.error('Error sending email:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
 export default {
   sendOrderConfirmationEmail,
-  sendAdminOrderNotification
+  sendAdminOrderNotification,
+  sendEmail
 };

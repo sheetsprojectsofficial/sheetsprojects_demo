@@ -584,18 +584,18 @@ const bookController = {
     }
   },
 
-  // Purchase a book (free books)
+  // Purchase a book (free books only - paid books go through Razorpay)
   purchaseBook: async (req, res) => {
     try {
       const { id } = req.params;
-      const { 
-        userId, 
-        userName, 
-        userEmail, 
-        phoneNumber, 
+      const {
+        userId,
+        userName,
+        userEmail,
+        phoneNumber,
         address
       } = req.body;
-      
+
       if (!userId || !userName || !userEmail) {
         return res.status(400).json({
           success: false,
@@ -604,11 +604,22 @@ const bookController = {
       }
 
       const book = await Book.findById(id);
-      
+
       if (!book) {
         return res.status(404).json({
           success: false,
           message: 'Book not found'
+        });
+      }
+
+      // IMPORTANT: Paid books must go through Razorpay payment flow
+      if (book.price > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'This is a paid book. Please complete payment through Razorpay.',
+          requiresPayment: true,
+          bookPrice: book.price,
+          currency: book.currency || 'INR'
         });
       }
 

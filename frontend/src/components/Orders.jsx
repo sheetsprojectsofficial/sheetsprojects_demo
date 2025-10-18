@@ -158,10 +158,10 @@ const Orders = () => {
 
   const disableSolutionLink = async (orderId) => {
     if (!user) return;
-    
+
     try {
       const token = await user.getIdToken();
-      
+
       const response = await fetch(`${import.meta.env.VITE_API_URL}/orders/${orderId}/solution/disable`, {
         method: 'PUT',
         headers: {
@@ -174,10 +174,10 @@ const Orders = () => {
 
       if (data.success) {
         // Update the local state with both solution link and status changes
-        setOrders(orders.map(order => 
-          order.orderId === orderId 
-            ? { 
-                ...order, 
+        setOrders(orders.map(order =>
+          order.orderId === orderId
+            ? {
+                ...order,
                 solutionLink: data.order.solutionLink,
                 status: data.order.status, // Update status to pending
                 updatedAt: data.order.updatedAt
@@ -187,6 +187,51 @@ const Orders = () => {
       }
     } catch (err) {
       console.error('Error disabling solution link:', err);
+    }
+  };
+
+  // Delete order (with cascade delete of BookPurchase for books)
+  const deleteOrder = async (orderId, orderItemType) => {
+    if (!user) return;
+
+    // Confirm deletion
+    const confirmMessage = orderItemType === 'book'
+      ? 'Are you sure you want to delete this order? This will also remove the book purchase record for this user.'
+      : 'Are you sure you want to delete this order?';
+
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      const token = await user.getIdToken();
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/orders/${orderId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Remove the order from local state
+        setOrders(orders.filter(order => order.orderId !== orderId));
+
+        // Show success message
+        if (data.cascadeDeleted) {
+          alert('Order deleted successfully! Related book purchase has also been removed.');
+        } else {
+          alert('Order deleted successfully!');
+        }
+      } else {
+        alert('Failed to delete order: ' + (data.message || 'Unknown error'));
+      }
+    } catch (err) {
+      console.error('Error deleting order:', err);
+      alert('Error deleting order. Please try again.');
     }
   };
 
@@ -519,7 +564,7 @@ const Orders = () => {
 
                       {/* Drive Link Management Buttons - Only show for digital products and books */}
                       {(order.itemType === 'book' || order.productInfo?.productType === 'Soft' || order.productInfo?.productType === 'Physical + Soft') && (
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-2 mb-2">
                           {order.solutionLink?.isEnabled ? (
                             <>
                               <button
@@ -555,6 +600,15 @@ const Orders = () => {
                           )}
                         </div>
                       )}
+
+                      {/* Delete Order Button */}
+                      <button
+                        onClick={() => deleteOrder(order.orderId, order.itemType)}
+                        className="w-full text-xs bg-red-600 text-white px-3 py-2 rounded-md hover:bg-red-700 transition-colors cursor-pointer font-medium"
+                        title={order.itemType === 'book' ? "Delete order and book purchase" : "Delete order"}
+                      >
+                        🗑️ Delete Order
+                      </button>
                     </div>
                   </td>
                 </tr>

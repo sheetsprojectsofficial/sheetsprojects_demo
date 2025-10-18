@@ -40,12 +40,12 @@ const Checkout = () => {
     const fetchItem = async () => {
       try {
         setLoading(true);
-        
+
         // Check if it's a book (id starts with 'book-')
         if (id.startsWith('book-')) {
           const bookId = id.replace('book-', '');
           setItemType('book');
-          
+
           // Check for format parameter
           const format = searchParams.get('format');
           if (format === 'hard') {
@@ -53,10 +53,10 @@ const Checkout = () => {
           } else {
             setBookFormat('soft');
           }
-          
+
           const response = await fetch(`${import.meta.env.VITE_API_URL}/books/id/${bookId}`);
           const data = await response.json();
-          
+
           if (data.success && data.book) {
             setBook(data.book);
           } else {
@@ -65,13 +65,16 @@ const Checkout = () => {
         } else {
           // It's a product
           setItemType('product');
-          
+
           const response = await fetch(`${import.meta.env.VITE_API_URL}/products`);
           const data = await response.json();
-          
+
           if (data.success && data.products && Array.isArray(data.products)) {
             const foundProduct = data.products.find(p => p.id === parseInt(id));
             if (foundProduct) {
+              console.log('Product found:', foundProduct);
+              console.log('Product imageUrl:', foundProduct.imageUrl);
+              console.log('Product iframe:', foundProduct.iframe);
               setProduct(foundProduct);
             } else {
               navigate('/products');
@@ -91,7 +94,7 @@ const Checkout = () => {
     if (id) {
       fetchItem();
     }
-  }, [id, navigate, itemType]);
+  }, [id, navigate, itemType, searchParams]);
 
   // Check if user has already purchased this specific item
   useEffect(() => {
@@ -189,8 +192,20 @@ const Checkout = () => {
 
     if (!formData.phoneNumber.trim()) {
       newErrors.phoneNumber = 'Phone number is required';
-    } else if (!/^[0-9]{10}$/.test(formData.phoneNumber.replace(/[^\d]/g, ''))) {
-      newErrors.phoneNumber = 'Please enter a valid 10-digit phone number';
+    } else {
+      const cleanNumber = formData.phoneNumber.replace(/[^\d]/g, '');
+      // Allow 11 digits if starts with 0, otherwise 10 digits
+      const isValid = cleanNumber.startsWith('0')
+        ? /^0[0-9]{10}$/.test(cleanNumber)  // 11 digits starting with 0
+        : /^[0-9]{10}$/.test(cleanNumber);   // 10 digits
+
+      if (!isValid) {
+        if (cleanNumber.startsWith('0')) {
+          newErrors.phoneNumber = 'Please enter a valid 11-digit phone number (starting with 0)';
+        } else {
+          newErrors.phoneNumber = 'Please enter a valid 10-digit phone number';
+        }
+      }
     }
 
     // Address is required for items that need physical delivery OR paid items
@@ -210,85 +225,244 @@ const Checkout = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Prevent submission if already purchased
     if (isPurchased) {
       toast.warning(`You have already purchased this ${itemType}!`);
       return;
     }
-    
+
     if (validateForm()) {
       setSubmitting(true);
       try {
         if (itemType === 'book') {
-          // Book purchase
-          const orderData = {
-            userId: user.uid,
-            userName: formData.fullName,
-            userEmail: user.email, // Use Firebase user's email, not form email
-            phoneNumber: formData.phoneNumber,
-            address: formData.address,
-            bookId: book._id,
-            bookTitle: book.title,
-            bookSlug: book.slug,
-            bookPrice: bookPrice,
-            currency: book.currency || 'USD',
-            totalAmount: bookPrice,
-            status: 'completed'
-          };
-          
-          const response = await fetch(`${import.meta.env.VITE_API_URL}/books/${book._id}/purchase`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${await user.getIdToken()}`
-            },
-            body: JSON.stringify(orderData)
-          });
-          
-          const data = await response.json();
-          
-          if (data.success) {
-            toast.success('Book purchased successfully!');
-            setTimeout(() => {
-              navigate(`/books/${book.slug}`);
-            }, 2000);
+          // Debug: Log book price calculation
+          console.log('=== BOOK PAYMENT DEBUG ===');
+          console.log('Book object:', book);
+          console.log('Book price from book.price:', book?.price);
+          console.log('Book format:', bookFormat);
+          console.log('Calculated bookPrice:', bookPrice);
+          console.log('Is paid book?', bookPrice > 0);
+          console.log('========================');
+
+          // Check if book is paid
+          if (bookPrice > 0) {
+            // Paid book - initiate Razorpay payment FIRST
+            console.log('🔥 Initiating Razorpay for paid book...');
+            await handleRazorpayPayment('book');
           } else {
-            toast.error(data.message || 'Failed to complete purchase');
+            // Free book - direct purchase
+            const orderData = {
+              userId: user.uid,
+              userName: formData.fullName,
+              userEmail: user.email,
+              phoneNumber: formData.phoneNumber,
+              address: formData.address,
+              bookId: book._id,
+              bookTitle: book.title,
+              bookSlug: book.slug,
+              bookPrice: bookPrice,
+              currency: book.currency || 'USD',
+              totalAmount: bookPrice,
+              status: 'completed'
+            };
+
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/books/${book._id}/purchase`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${await user.getIdToken()}`
+              },
+              body: JSON.stringify(orderData)
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+              toast.success('Book purchased successfully!');
+              setTimeout(() => {
+                navigate(`/books/${book.slug}`);
+              }, 2000);
+            } else {
+              toast.error(data.message || 'Failed to complete purchase');
+            }
           }
         } else {
-          // Product purchase
-          const orderData = {
-            productId: product.id,
-            customerInfo: formData
-          };
-          
-          const response = await fetch(`${import.meta.env.VITE_API_URL}/checkout`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(orderData)
-          });
-          
-          const data = await response.json();
-          
-          if (data.success) {
-            toast.success(data.message);
-            setTimeout(() => {
-              navigate('/dashboard');
-            }, 2000);
+          // Product purchase - check if paid or free
+          if (isFreePorduct) {
+            // Free product - create order directly
+            const orderData = {
+              productId: product.id,
+              customerInfo: formData
+            };
+
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/checkout`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(orderData)
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+              toast.success(data.message);
+              setTimeout(() => {
+                navigate('/dashboard');
+              }, 2000);
+            } else {
+              toast.error(data.message || 'Please try again later');
+            }
           } else {
-            toast.error(data.message || 'Please try again later');
+            // Paid product - initiate Razorpay payment FIRST
+            await handleRazorpayPayment('product');
           }
         }
-        
+
       } catch (error) {
         console.error('Error submitting order:', error);
         toast.error('Error processing order. Please check your connection and try again.');
       } finally {
         setSubmitting(false);
       }
+    }
+  };
+
+  const handleRazorpayPayment = async (type) => {
+    try {
+      // Generate unique order ID
+      const orderIdForPayment = type === 'book'
+        ? `BOOK_${Date.now()}_${Math.random().toString(36).substr(2, 9).toUpperCase()}`
+        : `PROD_${Date.now()}_${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+
+      const amount = type === 'book' ? bookPrice : price;
+
+      // Create Razorpay order
+      const orderResponse = await fetch(`${import.meta.env.VITE_API_URL}/payment/create-order`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          amount: amount,
+          currency: 'INR',
+          orderId: orderIdForPayment,
+          itemType: type
+        })
+      });
+
+      const orderData = await orderResponse.json();
+
+      if (!orderData.success) {
+        toast.error('Failed to create payment order');
+        setSubmitting(false);
+        return;
+      }
+
+      // Load Razorpay script if not already loaded
+      if (!window.Razorpay) {
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.async = true;
+        document.body.appendChild(script);
+
+        await new Promise((resolve) => {
+          script.onload = resolve;
+        });
+      }
+
+      // Razorpay options
+      const options = {
+        key: orderData.keyId,
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: 'SheetsProjects',
+        description: type === 'book' ? `Purchase ${book.title}` : `Purchase ${product.title}`,
+        order_id: orderData.orderId,
+        handler: async function (response) {
+          // Payment successful - verify on backend
+          try {
+            const verifyData = {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              orderId: orderIdForPayment,
+              itemType: type,
+              customerInfo: formData
+            };
+
+            // Add type-specific data
+            if (type === 'book') {
+              verifyData.bookData = {
+                bookId: book._id,
+                userId: user.uid,
+                userEmail: user.email,
+                userName: formData.fullName,
+                phoneNumber: formData.phoneNumber,
+                address: formData.address,
+                price: bookPrice,
+                currency: book.currency || 'INR'
+              };
+            } else {
+              verifyData.productData = {
+                productId: product.id,
+                productTitle: product.title,
+                productSummary: product.summary || '',
+                productType: product.productType || 'Soft',
+                amount: price
+              };
+            }
+
+            const verifyResponse = await fetch(`${import.meta.env.VITE_API_URL}/payment/verify-payment`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(verifyData)
+            });
+
+            const verifyResult = await verifyResponse.json();
+
+            if (verifyResult.success) {
+              toast.success('Payment successful! Order confirmed.');
+              setTimeout(() => {
+                if (type === 'book') {
+                  navigate(`/books/${book.slug}`);
+                } else {
+                  navigate('/dashboard');
+                }
+              }, 2000);
+            } else {
+              toast.error(verifyResult.message || 'Payment verification failed');
+            }
+          } catch (error) {
+            console.error('Payment verification error:', error);
+            toast.error('Payment verification failed. Please contact support.');
+          }
+        },
+        prefill: {
+          name: formData.fullName,
+          email: formData.email,
+          contact: formData.phoneNumber
+        },
+        theme: {
+          color: '#3B82F6'
+        },
+        modal: {
+          ondismiss: function() {
+            toast.info('Payment cancelled');
+            setSubmitting(false);
+          }
+        }
+      };
+
+      const razorpay = new window.Razorpay(options);
+      razorpay.open();
+    } catch (error) {
+      console.error('Razorpay payment error:', error);
+      toast.error('Failed to initiate payment');
+      setSubmitting(false);
     }
   };
 
@@ -319,16 +493,41 @@ const Checkout = () => {
   const currentItem = itemType === 'book' ? book : product;
   // Calculate final price for display
   const getBookPrice = () => {
-    if (!book) return 0;
+    if (!book) {
+      console.log('❌ No book object found');
+      return 0;
+    }
+    console.log('📚 Book data:', {
+      title: book.title,
+      price: book.price,
+      priceType: typeof book.price,
+      pricingInfo: book.pricingInfo,
+      bookFormat: bookFormat
+    });
+
+    let basePrice = 0;
+
+    // Convert book.price to number (handle string prices)
+    if (typeof book.price === 'string') {
+      basePrice = parseFloat(book.price) || 0;
+    } else if (typeof book.price === 'number') {
+      basePrice = book.price;
+    }
+
     if (bookFormat === 'hard' && book.pricingInfo?.hardCopy?.available) {
       // Extract numeric price from hardCopy displayText (e.g., "20" from "Hard Copy - 20")
       const hardCopyPrice = book.pricingInfo.hardCopy.displayText?.match(/\d+/)?.[0];
-      return hardCopyPrice ? parseInt(hardCopyPrice) : book.price;
+      const finalPrice = hardCopyPrice ? parseInt(hardCopyPrice) : basePrice;
+      console.log('💰 Hard copy price:', finalPrice);
+      return finalPrice;
     }
-    return book.price;
+
+    console.log('💰 Soft copy price:', basePrice);
+    return basePrice;
   };
 
   const bookPrice = getBookPrice();
+  console.log('💵 Final bookPrice:', bookPrice, 'Type:', typeof bookPrice);
   const isFreePorduct = itemType === 'book' ? (bookPrice === 0) : (!product?.priceINR || product.priceINR === '0');
   const price = itemType === 'book' ? (bookPrice || 0) : (isFreePorduct ? 0 : parseInt(product?.priceINR || 0));
 
@@ -423,7 +622,7 @@ const Checkout = () => {
                   className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary transition-colors ${
                     errors.phoneNumber ? 'border-red-500' : 'border-gray-300'
                   }`}
-                  placeholder="Enter your phone number"
+                  placeholder="10 digits (or 11 if starts with 0)"
                 />
                 {errors.phoneNumber && (
                   <p className="mt-1 text-sm text-red-600">{errors.phoneNumber}</p>
@@ -510,38 +709,52 @@ const Checkout = () => {
               
               <div className="flex items-start space-x-4">
                 {/* Product Image */}
-                <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
                   {itemType === 'book' ? (
+                    // Book cover image
                     <img
                       src={book?.coverImage?.startsWith('/api/') ? `${import.meta.env.VITE_API_URL.replace('/api', '')}${book.coverImage}` : book?.coverImage}
                       alt={book?.title}
-                      className="w-full h-full object-cover rounded-lg"
+                      className="w-full h-full object-cover"
                       referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        const parent = e.target.parentElement;
+                        parent.innerHTML = '<svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>';
+                      }}
                     />
-                  ) : (product?.iframe || product?.imageUrl) ? (
-                    <iframe
-                      src={(() => {
-                        const mediaUrl = product.iframe || product.imageUrl;
-                        if (mediaUrl.includes('youtube.com/embed/')) {
-                          return mediaUrl + '?controls=0&showinfo=0&rel=0&modestbranding=1';
-                        }
-                        if (mediaUrl.includes('youtube.com/watch?v=')) {
-                          const videoId = mediaUrl.split('v=')[1]?.split('&')[0];
-                          return `https://www.youtube.com/embed/${videoId}?controls=0&showinfo=0&rel=0&modestbranding=1`;
-                        }
-                        if (mediaUrl.includes('drive.google.com')) {
-                          return mediaUrl.replace('/view?usp=sharing', '/preview').replace('/view?usp=drive_link', '/preview') + '?embedded=true';
-                        }
-                        return mediaUrl;
-                      })()}
-                      className="w-full h-full rounded-lg"
-                      style={{ border: 0, pointerEvents: 'none' }}
-                      title={product.title}
-                    ></iframe>
                   ) : (
-                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
+                    // Product image
+                    <>
+                      {product?.imageUrl && (
+                        <img
+                          src={product.imageUrl}
+                          alt={product.title}
+                          className="w-full h-full object-cover"
+                          referrerPolicy="no-referrer"
+                          crossOrigin="anonymous"
+                          onError={(e) => {
+                            console.log('Image failed to load:', product.imageUrl);
+                            e.target.style.display = 'none';
+                            const parent = e.target.parentElement;
+                            if (!parent.querySelector('svg')) {
+                              parent.innerHTML = '<svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>';
+                            }
+                          }}
+                          onLoad={() => console.log('Image loaded successfully')}
+                        />
+                      )}
+                      {!product?.imageUrl && product?.iframe && (
+                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      )}
+                      {!product?.imageUrl && !product?.iframe && (
+                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      )}
+                    </>
                   )}
                 </div>
 

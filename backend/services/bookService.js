@@ -100,8 +100,9 @@ const convertDocToHtml = async (drive, fileId, fileName, mimeType) => {
 };
 
 const generateDirectImageUrl = (fileId) => {
-  // Use backend image proxy to serve Google Drive images
-  return `/api/images/drive/${fileId}`;
+  // Use Google Drive's public thumbnail API directly (no backend proxy needed)
+  // This is more reliable and doesn't require authentication
+  return `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`;
 };
 
 const convertGoogleDriveUrl = (url) => {

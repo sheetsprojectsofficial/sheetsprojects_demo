@@ -146,13 +146,14 @@ const ordersController = {
     }
   },
 
-  // Delete order
+  // Delete order (with cascade delete of BookPurchase)
   deleteOrder: async (req, res) => {
     try {
       const { orderId } = req.params;
-      
+
+      // findOneAndDelete triggers the cascade delete middleware in Order model
       const order = await Order.findOneAndDelete({ orderId });
-      
+
       if (!order) {
         return res.status(404).json({
           success: false,
@@ -160,15 +161,19 @@ const ordersController = {
         });
       }
 
-      console.log('Order deleted:', orderId);
+      console.log('✅ Order deleted:', orderId);
+      if (order.itemType === 'book') {
+        console.log('📚 Related BookPurchase will be cascade deleted via middleware');
+      }
 
       res.json({
         success: true,
-        message: 'Order deleted successfully'
+        message: 'Order deleted successfully',
+        cascadeDeleted: order.itemType === 'book' ? 'BookPurchase also deleted' : null
       });
 
     } catch (error) {
-      console.error('Error deleting order:', error);
+      console.error('❌ Error deleting order:', error);
       res.status(500).json({
         success: false,
         message: 'Error deleting order'

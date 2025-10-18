@@ -277,28 +277,41 @@ const Books = () => {
                     className="aspect-[3/4] overflow-hidden bg-gray-100 cursor-pointer"
                     onClick={() => handleBookClick(book.slug)}
                   >
-                    <img
-                      src={(() => {
-                        // Handle different image URL types
-                        if (book.coverImage.startsWith('http://') || book.coverImage.startsWith('https://')) {
-                          // Direct URLs (including Google Drive converted URLs)
-                          return book.coverImage;
-                        } else if (book.coverImage.startsWith('/api/')) {
-                          // Backend API URLs
-                          return `${import.meta.env.VITE_API_URL.replace('/api', '')}${book.coverImage}`;
-                        } else {
-                          // Fallback to the original logic
-                          return book.coverImage;
-                        }
-                      })()}
-                      alt={book.title}
-                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                      referrerPolicy="no-referrer"
-                      onError={(e) => {
-                        console.error('Image failed to load:', book.coverImage);
-                        e.target.src = '/default-book-cover.jpg'; // Fallback image
-                      }}
-                    />
+                    {console.log('Book cover image data:', book.title, book.coverImage)}
+
+<img
+  src={(() => {
+    console.log('Processing image for:', book.title, 'Raw coverImage:', book.coverImage);
+    
+    // Handle different image URL types
+    if (book.coverImage.startsWith('http://') || book.coverImage.startsWith('https://')) {
+      console.log('Using direct URL:', book.coverImage);
+      return book.coverImage;
+    } else if (book.coverImage.startsWith('/api/images/drive/')) {
+      const fileId = book.coverImage.replace('/api/images/drive/', '');
+      const googleUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
+      console.log('Converted to Google Drive URL:', googleUrl);
+      return googleUrl;
+    } else if (book.coverImage.startsWith('/api/')) {
+      const backendUrl = `${import.meta.env.VITE_API_URL}${book.coverImage}`;
+      console.log('Using backend API URL:', backendUrl);
+      return backendUrl;
+    } else {
+      // If it's just a file ID, create the Google Drive URL
+      const googleUrl = `https://drive.google.com/uc?export=view&id=${book.coverImage}`;
+      console.log('Treating as file ID, Google Drive URL:', googleUrl);
+      return googleUrl;
+    }
+  })()}
+  alt={book.title}
+  className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+  referrerPolicy="no-referrer"
+  onError={(e) => {
+    console.error('Image failed to load:', book.title, book.coverImage);
+    console.error('Failed URL was:', e.target.src);
+    e.target.src = '/default-book-cover.jpg'; // Fallback image
+  }}
+/>
                   </div>
 
                   {/* Book Info */}

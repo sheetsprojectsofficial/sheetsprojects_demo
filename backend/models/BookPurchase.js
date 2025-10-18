@@ -46,6 +46,19 @@ const bookPurchaseSchema = new mongoose.Schema({
     enum: ['pending', 'completed', 'failed', 'refunded'],
     default: 'completed'
   },
+  // Razorpay Payment Details
+  razorpayOrderId: {
+    type: String,
+    default: null
+  },
+  razorpayPaymentId: {
+    type: String,
+    default: null
+  },
+  razorpaySignature: {
+    type: String,
+    default: null
+  },
   // Access control
   accessGranted: {
     type: Boolean,
