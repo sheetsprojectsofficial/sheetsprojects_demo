@@ -46,6 +46,7 @@ const Invoices = () => {
     dueDate: '',
     currency: 'INR', // Default currency
     discount: 0,
+    taxPercentage: 0, // Tax percentage
     bankName: '',
     accountNumber: '',
     ifscCode: ''
@@ -67,11 +68,21 @@ const Invoices = () => {
     return items.reduce((sum, item) => sum + (parseFloat(item.price) || 0), 0);
   };
 
-  // Calculate balance due
+  // Calculate tax amount
+  const calculateTax = () => {
+    const subtotal = calculateSubtotal();
+    const discount = parseFloat(formData.discount) || 0;
+    const subtotalAfterDiscount = subtotal - discount;
+    const taxPercentage = parseFloat(formData.taxPercentage) || 0;
+    return (subtotalAfterDiscount * taxPercentage) / 100;
+  };
+
+  // Calculate balance due (subtotal - discount + tax)
   const calculateBalanceDue = () => {
     const subtotal = calculateSubtotal();
     const discount = parseFloat(formData.discount) || 0;
-    return subtotal - discount;
+    const tax = calculateTax();
+    return subtotal - discount + tax;
   };
 
   // Validation helper functions
@@ -444,7 +455,7 @@ const Invoices = () => {
             {step === 2 && 'Bill To'}
             {step === 3 && 'Invoice Info'}
             {step === 4 && 'Items'}
-            {step === 5 && 'Discount'}
+            {step === 5 && 'Discount & Tax'}
             {step === 6 && 'Bank Details'}
           </span>
         </div>
@@ -846,27 +857,51 @@ const Invoices = () => {
                 </>
               )}
 
-              {/* Step 5: Discount Section */}
+              {/* Step 5: Discount & Tax Section */}
               {currentStep === 5 && (
                 <>
                   <div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-4">Discount</h3>
+                    <h3 className="text-xl font-bold text-gray-900 mb-4">Discount & Tax</h3>
+                  </div>
+
+                  <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Discount Amount
+                    </label>
+                    <input
+                      type="number"
+                      name="discount"
+                      value={formData.discount}
+                      onChange={handleInputChange}
+                      placeholder="0.00"
+                      min="0"
+                      step="0.01"
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
                   </div>
 
                   <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Discount Amount
-                  </label>
-                  <input
-                    type="number"
-                    name="discount"
-                    value={formData.discount}
-                    onChange={handleInputChange}
-                    placeholder="0.00"
-                    min="0"
-                    step="0.01"
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Tax Percentage (%)
+                    </label>
+                    <input
+                      type="number"
+                      name="taxPercentage"
+                      value={formData.taxPercentage}
+                      onChange={handleInputChange}
+                      placeholder="0"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    {formData.taxPercentage > 0 && (
+                      <p className="text-sm text-gray-600 mt-2">
+                        Tax Amount: {getCurrencySymbol()}{calculateTax().toFixed(2)}
+                      </p>
+                    )}
+                  </div>
                   </div>
 
                   {/* Navigation Buttons */}
@@ -1060,11 +1095,13 @@ const Invoices = () => {
                         </td>
                       </tr>
                     ))}
-                    <tr>
-                      <td className="border border-gray-400 px-3 py-2"></td>
-                      <td className="border border-gray-400 px-3 py-2 font-medium">Taxes</td>
-                      <td className="border border-gray-400 px-3 py-2"></td>
-                    </tr>
+                    {formData.taxPercentage > 0 && (
+                      <tr>
+                        <td className="border border-gray-400 px-3 py-2"></td>
+                        <td className="border border-gray-400 px-3 py-2 font-medium">Tax ({formData.taxPercentage}%)</td>
+                        <td className="border border-gray-400 px-3 py-2 text-right whitespace-nowrap">{getCurrencySymbol()}{calculateTax().toFixed(2)}</td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -1075,10 +1112,18 @@ const Invoices = () => {
                   <span className="text-sm font-semibold min-w-[100px] text-right">Subtotal:</span>
                   <span className="text-sm font-medium min-w-[120px] text-right">{getCurrencySymbol()}{calculateSubtotal().toFixed(2)}</span>
                 </div>
-                <div className="flex justify-end items-center mb-2 gap-4">
-                  <span className="text-sm font-semibold min-w-[100px] text-right">Discount:</span>
-                  <span className="text-sm font-medium min-w-[120px] text-right">{getCurrencySymbol()}{parseFloat(formData.discount || 0).toFixed(2)}</span>
-                </div>
+                {formData.discount > 0 && (
+                  <div className="flex justify-end items-center mb-2 gap-4">
+                    <span className="text-sm font-semibold min-w-[100px] text-right">Discount:</span>
+                    <span className="text-sm font-medium min-w-[120px] text-right">-{getCurrencySymbol()}{parseFloat(formData.discount || 0).toFixed(2)}</span>
+                  </div>
+                )}
+                {formData.taxPercentage > 0 && (
+                  <div className="flex justify-end items-center mb-2 gap-4">
+                    <span className="text-sm font-semibold min-w-[100px] text-right">Tax ({formData.taxPercentage}%):</span>
+                    <span className="text-sm font-medium min-w-[120px] text-right">{getCurrencySymbol()}{calculateTax().toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-end items-center gap-4">
                   <span className="text-base font-bold min-w-[100px] text-right">Balance Due:</span>
                   <span className="text-base font-bold min-w-[120px] text-right bg-gray-200 px-3 py-2 rounded">
