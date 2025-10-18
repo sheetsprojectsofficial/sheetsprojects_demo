@@ -222,7 +222,7 @@ const portfolioController = {
           if (imageFiles.length > 0) {
             const imageFile = imageFiles[0];
             // Use our backend proxy to serve the image
-            previewUrl = `${process.env.API_BASE_URL || 'http://localhost:5001'}/api/portfolio/image/${imageFile.id}`;
+            previewUrl = `${process.env.API_BASE_URL || 'http://localhost:5004'}/api/portfolio/image/${imageFile.id}`;
             hasImage = true;
           } else {
             errors.push(`Template folder "${folder.name}" is missing a preview image`);

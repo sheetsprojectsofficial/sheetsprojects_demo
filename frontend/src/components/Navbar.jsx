@@ -3,6 +3,7 @@ import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { NavigationContext } from '../context/NavigationContext';
 import { useSettings } from '../context/SettingsContext';
 import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 import { useBrand } from '../context/BrandContext';
 import { useTheme } from '../hooks/useTheme';
 import { convertImageUrl } from '../utils/imageUtils';
@@ -12,6 +13,7 @@ const Navbar = () => {
   const { navigationItems } = useContext(NavigationContext);
   const { settings, getSettingValue } = useSettings();
   const { isAuthenticated, logout, user, isAdmin } = useAuth();
+  const { cart } = useCart();
   const { brandName } = useBrand();
   const { getThemeClasses } = useTheme();
   
@@ -334,6 +336,23 @@ const Navbar = () => {
           {/* Right Side - User Actions */}
           <div className="hidden md:flex items-center space-x-2 ml-auto">
 
+            {/* Cart Icon - Show for authenticated users */}
+            {isAuthenticated() && (
+              <Link
+                to="/cart"
+                className="relative p-2 rounded-full hover:bg-gray-100 transition-all duration-200"
+              >
+                <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                {cart.itemCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                    {cart.itemCount}
+                  </span>
+                )}
+              </Link>
+            )}
+
             {/* User Actions - Always show for authenticated users */}
             {isAuthenticated() && (
               <div className="relative" ref={dropdownRef}>
@@ -341,7 +360,7 @@ const Navbar = () => {
                   onClick={toggleUserDropdown}
                   className="flex items-center justify-center cursor-pointer space-x-2 p-2 rounded-full hover:bg-gray-100 transition-all duration-200"
                 >
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-sm" 
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-sm"
                        style={{ backgroundColor: 'var(--brand-primary)' }}>
                     {getUserInitial()}
                   </div>

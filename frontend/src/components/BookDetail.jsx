@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 import { toast } from 'react-toastify';
 import Comments from './Comments';
 import { Modal, Box, IconButton, Fade, Backdrop } from '@mui/material';
@@ -10,6 +11,7 @@ const BookDetail = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
+  const { addToCart, loading: cartLoading } = useCart();
   const [book, setBook] = useState(null);
   const [relatedBooks, setRelatedBooks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -210,6 +212,22 @@ const BookDetail = () => {
     // Save format selection to localStorage for this specific book
     if (book?._id) {
       localStorage.setItem(`book-format-${book._id}`, newFormat);
+    }
+  };
+
+  const handleAddToCart = async () => {
+    if (!user) {
+      toast.warning('Please login to add items to cart');
+      navigate('/login');
+      return;
+    }
+
+    try {
+      await addToCart('book', book._id, { bookFormat: selectedFormat });
+      toast.success(`Book added to cart (${selectedFormat === 'hard' ? 'Hard Copy' : 'Soft Copy'})!`);
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      toast.error('Failed to add to cart');
     }
   };
 
@@ -497,41 +515,53 @@ const BookDetail = () => {
                         </div>
                       )
                     ) : (
-                      // Show Read Book (half width) and Buy Now (half width) for hard copy
-                      <div className="flex gap-3">
+                      // Show buttons for hard copy (Read Book, Add to Cart, and Buy Now)
+                      <div className="space-y-2">
                         {purchaseInfo?.solutionLink?.isEnabled ? (
                           <button
                             onClick={handleReadBook}
-                            className="flex-1 bg-green-600 text-white px-4 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors cursor-pointer shadow-lg hover:shadow-xl"
+                            className="w-full bg-green-600 text-white px-4 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors cursor-pointer shadow-lg hover:shadow-xl"
                           >
-                            Read Book
+                            Read Book (Soft Copy)
                           </button>
                         ) : (
-                          <div className="flex-1 bg-yellow-50 border border-yellow-200 px-4 py-3 rounded-lg">
+                          <div className="w-full bg-yellow-50 border border-yellow-200 px-4 py-3 rounded-lg">
                             <div className="flex items-center justify-center">
                               <svg className="w-5 h-5 mr-2 text-yellow-600 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                               </svg>
-                              <span className="font-medium text-yellow-700 text-sm">Processing</span>
+                              <span className="font-medium text-yellow-700 text-sm">Processing Soft Copy</span>
                             </div>
                           </div>
                         )}
-                        <button
-                          onClick={handlePurchase}
-                          disabled={purchasing}
-                          className="flex-1 bg-brand-primary text-white px-4 py-3 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer flex items-center justify-center shadow-lg hover:shadow-xl"
-                        >
-                          {purchasing ? (
-                            <>Processing...</>
-                          ) : (
-                            <>
-                              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                              </svg>
-                              Buy Hard Copy
-                            </>
-                          )}
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={handleAddToCart}
+                            disabled={cartLoading || purchasing}
+                            className="flex-1 bg-purple-600 text-white px-4 py-3 rounded-lg font-semibold hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer shadow-lg hover:shadow-xl"
+                          >
+                            <svg className="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                            Add to Cart
+                          </button>
+                          <button
+                            onClick={handlePurchase}
+                            disabled={purchasing}
+                            className="flex-1 bg-brand-primary text-white px-4 py-3 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer flex items-center justify-center shadow-lg hover:shadow-xl"
+                          >
+                            {purchasing ? (
+                              <>Processing...</>
+                            ) : (
+                              <>
+                                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                                </svg>
+                                Buy Now
+                              </>
+                            )}
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -574,7 +604,11 @@ const BookDetail = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Select Format
                       </label>
-                      <select className="w-full cursor-pointer px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-brand-primary">
+                      <select
+                        value={selectedFormat}
+                        onChange={handleFormatChange}
+                        className="w-full cursor-pointer px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-brand-primary"
+                      >
                         <option value="soft">Soft Copy - {formatPrice(book.price, book.currency)}</option>
                         {book.pricingInfo?.hardCopy?.available && (
                           <option value="hard">Hard Copy - {book.pricingInfo.hardCopy.displayText}</option>
@@ -582,8 +616,22 @@ const BookDetail = () => {
                       </select>
                     </div>
 
-                    {/* Purchase Button */}
-                    <div>
+                    {/* Purchase Buttons */}
+                    <div className="space-y-2">
+                      {/* Add to Cart - only for paid books */}
+                      {book.price > 0 && (
+                        <button
+                          onClick={handleAddToCart}
+                          disabled={cartLoading || purchasing}
+                          className="w-full bg-purple-600 text-white px-6 py-3 rounded-md font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer flex items-center justify-center shadow-lg hover:shadow-xl"
+                        >
+                          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                          </svg>
+                          Add to Cart
+                        </button>
+                      )}
+                      {/* Buy Now Button */}
                       <button
                         onClick={handlePurchase}
                         disabled={purchasing}

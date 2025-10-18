@@ -73,6 +73,7 @@ export const verifyRazorpayPayment = async (req, res) => {
       itemType,
       bookData, // For book purchases
       productData, // For product purchases
+      cartData, // For cart purchases
       customerInfo, // Customer information
     } = req.body;
 
@@ -277,6 +278,196 @@ export const verifyRazorpayPayment = async (req, res) => {
           bookId: bookPurchase.bookId,
           purchaseDate: bookPurchase.purchaseDate,
         },
+      });
+    } else if (itemType === 'cart') {
+      // Handle cart checkout AFTER successful payment
+      if (!cartData || !cartData.items || cartData.items.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Cart data is required',
+        });
+      }
+
+      const createdOrders = [];
+      const createdPurchases = [];
+
+      // Process each item in the cart
+      console.log(`🛒 Processing ${cartData.items.length} cart items...`);
+
+      for (const item of cartData.items) {
+        console.log(`📦 Processing item: ${item.itemType} - ${item.title}`);
+
+        if (item.itemType === 'product') {
+          // Create product order
+          console.log(`   Creating product order for: ${item.title}`);
+          const newOrder = new Order({
+            orderId: `${orderId}_${item.itemId}`, // Unique order ID for each product
+            itemType: 'product',
+            customerInfo: {
+              fullName: cartData.userName,
+              email: cartData.userEmail,
+              phoneNumber: cartData.phoneNumber,
+              address: cartData.address || '',
+            },
+            productInfo: {
+              productId: item.itemId,
+              title: item.title,
+              summary: item.summary || '',
+              productType: item.productType || 'Soft',
+            },
+            totalAmount: item.price * item.quantity,
+            currency: cartData.currency || 'INR',
+            isFree: false,
+            status: 'pending',
+            paymentStatus: 'completed',
+            razorpayOrderId: razorpay_order_id,
+            razorpayPaymentId: razorpay_payment_id,
+            razorpaySignature: razorpay_signature,
+          });
+
+          const savedOrder = await newOrder.save();
+          console.log(`   ✅ Product order created: ${savedOrder.orderId}`);
+          createdOrders.push(savedOrder);
+        } else if (item.itemType === 'book') {
+          console.log(`   📚 Processing book: ${item.title}`);
+          // Check if user already purchased this book
+          const existingPurchase = await BookPurchase.findOne({
+            bookId: item.itemId,
+            userId: cartData.userId,
+          });
+
+          if (existingPurchase) {
+            console.log(`   ⚠️ Book already purchased, skipping: ${item.title}`);
+            continue; // Skip to next item
+          }
+
+          console.log(`   Creating book purchase and order for: ${item.title}`);
+          // Get book details for the order
+          const book = await Book.findById(item.itemId);
+          console.log(`   Book details fetched:`, book ? `${book.title} by ${book.author}` : 'Book not found');
+
+          // Create book purchase record
+          const bookPurchase = new BookPurchase({
+              bookId: item.itemId,
+              userId: cartData.userId,
+              userEmail: cartData.userEmail,
+              userName: cartData.userName,
+              price: item.price * item.quantity,
+              currency: cartData.currency || 'INR',
+              paymentStatus: 'completed',
+              razorpayOrderId: razorpay_order_id,
+              razorpayPaymentId: razorpay_payment_id,
+              razorpaySignature: razorpay_signature,
+            });
+
+            await bookPurchase.save();
+            console.log(`   ✅ BookPurchase record created`);
+            createdPurchases.push(bookPurchase);
+
+            // ALSO create an Order record for the book so it shows in orders collection
+            console.log(`   Creating Order record for book...`);
+            const bookOrder = new Order({
+              orderId: `${orderId}_${item.itemId}`, // Unique order ID for each book
+              itemType: 'book',
+              customerInfo: {
+                fullName: cartData.userName,
+                email: cartData.userEmail,
+                phoneNumber: cartData.phoneNumber,
+                address: cartData.address || '',
+              },
+              bookInfo: {
+                bookId: item.itemId,
+                title: item.title || book?.title,
+                author: book?.author || '',
+                slug: book?.slug || '',
+                format: item.bookFormat || 'soft',
+              },
+              totalAmount: item.price * item.quantity,
+              currency: cartData.currency || 'INR',
+              isFree: false,
+              status: 'pending',
+              paymentStatus: 'completed',
+              razorpayOrderId: razorpay_order_id,
+              razorpayPaymentId: razorpay_payment_id,
+              razorpaySignature: razorpay_signature,
+            });
+
+            const savedBookOrder = await bookOrder.save();
+            console.log(`   ✅ Book Order created: ${savedBookOrder.orderId}`);
+            createdOrders.push(savedBookOrder);
+
+            // Increment book purchase count
+            await Book.findByIdAndUpdate(item.itemId, {
+              $inc: { purchases: 1 },
+            });
+            console.log(`   ✅ Book purchase count incremented`);
+        }
+      }
+
+      console.log(`🎉 Cart processing complete!`);
+      console.log(`   Orders created: ${createdOrders.length}`);
+      console.log(`   Purchases created: ${createdPurchases.length}`);
+
+      // Send confirmation email
+      try {
+        const itemsList = cartData.items.map(item =>
+          `<li><strong>${item.title}</strong> (${item.itemType}) - Qty: ${item.quantity} - ₹${item.price * item.quantity}</li>`
+        ).join('');
+
+        const customerEmailContent = `
+          <h2>Payment Successful!</h2>
+          <p>Dear ${cartData.userName},</p>
+          <p>Your payment has been successfully verified and your order has been confirmed!</p>
+          <h3>Order Details:</h3>
+          <ul>
+            <li><strong>Order ID:</strong> ${orderId}</li>
+            <li><strong>Total Amount:</strong> ₹${cartData.totalAmount}</li>
+            <li><strong>Payment ID:</strong> ${razorpay_payment_id}</li>
+          </ul>
+          <h3>Items:</h3>
+          <ul>${itemsList}</ul>
+          <p>We will process your order shortly and keep you updated.</p>
+          <p>Thank you for your purchase!</p>
+        `;
+
+        await sendEmail(
+          cartData.userEmail,
+          'Order Confirmed - ' + orderId,
+          customerEmailContent
+        );
+
+        // Admin notification
+        const adminEmailContent = `
+          <h2>New Cart Order Received</h2>
+          <p>A new cart order has been successfully completed.</p>
+          <h3>Order Details:</h3>
+          <ul>
+            <li><strong>Order ID:</strong> ${orderId}</li>
+            <li><strong>Customer:</strong> ${cartData.userName}</li>
+            <li><strong>Email:</strong> ${cartData.userEmail}</li>
+            <li><strong>Phone:</strong> ${cartData.phoneNumber}</li>
+            <li><strong>Address:</strong> ${cartData.address || 'N/A'}</li>
+            <li><strong>Total Amount:</strong> ₹${cartData.totalAmount}</li>
+            <li><strong>Payment ID:</strong> ${razorpay_payment_id}</li>
+          </ul>
+          <h3>Items:</h3>
+          <ul>${itemsList}</ul>
+        `;
+
+        await sendEmail(
+          process.env.EMAIL_USER,
+          'New Cart Order - ' + orderId,
+          adminEmailContent
+        );
+      } catch (emailError) {
+        console.error('Error sending cart confirmation emails:', emailError);
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Payment verified and cart orders created successfully',
+        orders: createdOrders.map(o => ({ orderId: o.orderId })),
+        purchases: createdPurchases.map(p => ({ bookId: p.bookId })),
       });
     } else {
       return res.status(400).json({

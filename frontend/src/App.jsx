@@ -6,6 +6,7 @@ import {
   Navigate,
 } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
+import { CartProvider } from "./context/CartContext";
 import { NavigationProvider } from "./context/NavigationContext";
 import { SubNavbarProvider } from "./context/SubNavbarContext";
 import { FooterProvider } from "./context/FooterContext";
@@ -29,6 +30,7 @@ import BookReader from "./components/BookReader";
 import Courses from "./components/Courses";
 import ContactUs from "./components/ContactUs";
 import Checkout from "./components/Checkout";
+import Cart from "./components/Cart";
 import TermsAndConditions from "./components/TermsAndConditions";
 import PrivacyPolicy from "./components/PrivacyPolicy";
 import Footer from "./components/Footer";
@@ -45,12 +47,13 @@ import DynamicPortfolio from "./components/Portfolios/DynamicPortfolio";
 function App() {
   return (
     <AuthProvider>
-      <NavigationProvider>
-        <SubNavbarProvider>
-          <BrandProvider>
-            <SettingsProvider>
-              <FooterProvider>
-                <Router>
+      <CartProvider>
+        <NavigationProvider>
+          <SubNavbarProvider>
+            <BrandProvider>
+              <SettingsProvider>
+                <FooterProvider>
+                  <Router>
                   <ScrollToTop />
                   <Routes>
                     {/* Dashboard routes - render without main layout */}
@@ -110,6 +113,7 @@ function App() {
                               <Route path="/bookings" element={<BookingForm />} />
                               <Route path="/my-bookings" element={<MyBookings />} />
                               <Route path="/invoices" element={<Invoices />} />
+                              <Route path="/cart" element={<Cart />} />
                               <Route
                                 path="/checkout/:id"
                                 element={<Checkout />}
@@ -148,11 +152,12 @@ function App() {
                     theme="light"
                   />
                 </Router>
-              </FooterProvider>
-            </SettingsProvider>
-          </BrandProvider>
-        </SubNavbarProvider>
-      </NavigationProvider>
+                </FooterProvider>
+              </SettingsProvider>
+            </BrandProvider>
+          </SubNavbarProvider>
+        </NavigationProvider>
+      </CartProvider>
     </AuthProvider>
   );
 }

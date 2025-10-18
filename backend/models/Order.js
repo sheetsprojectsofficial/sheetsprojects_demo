@@ -37,7 +37,7 @@ const orderSchema = new mongoose.Schema({
     },
     title: {
       type: String,
-      required: true
+      required: function() { return this.itemType === 'product'; }
     },
     summary: {
       type: String,
@@ -91,6 +91,11 @@ const orderSchema = new mongoose.Schema({
     coverImage: {
       type: String,
       default: ''
+    },
+    format: {
+      type: String,
+      enum: ['soft', 'hard'],
+      default: 'soft'
     }
   },
   // Order Details

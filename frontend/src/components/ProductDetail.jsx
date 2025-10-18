@@ -3,12 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '../config/firebase';
 import { toast, ToastContainer } from 'react-toastify';
+import { useCart } from '../context/CartContext';
 import 'react-toastify/dist/ReactToastify.css';
 
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [user] = useAuthState(auth);
+  const { addToCart, loading: cartLoading } = useCart();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -70,6 +72,22 @@ const ProductDetail = () => {
 
     checkPurchaseStatus();
   }, [user, product]);
+
+  const handleAddToCart = async () => {
+    if (!user) {
+      toast.warning('Please login to add items to cart');
+      navigate('/login');
+      return;
+    }
+
+    try {
+      await addToCart('product', product.id);
+      toast.success('Product added to cart!');
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      toast.error('Failed to add to cart');
+    }
+  };
 
   if (loading) {
     return (
@@ -230,11 +248,12 @@ const ProductDetail = () => {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-4 mb-8">
+              <div className="flex flex-col gap-4 mb-8">
+                {/* Top Row: Demo Button (if available) */}
                 {product.demoLink && (
-                  <button 
+                  <button
                     onClick={() => window.open(product.demoLink, '_blank')}
-                    className="flex-1 cursor-pointer bg-gray-100 text-gray-700 px-6 py-3 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors duration-200 flex items-center justify-center"
+                    className="w-full cursor-pointer bg-gray-100 text-gray-700 px-6 py-3 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors duration-200 flex items-center justify-center"
                   >
                     <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h8m2-10.586V18a2 2 0 01-2 2H6a2 2 0 012-2h4.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707z" />
@@ -242,36 +261,45 @@ const ProductDetail = () => {
                     DEMO
                   </button>
                 )}
-                <button 
-                  onClick={() => {
-                    if (isPurchased) {
-                      toast.warning('You have already purchased this product! Check your email for access details.');
-                    } else {
-                      navigate(`/checkout/${product.id}`);
-                    }
-                  }}
-                  className={`flex-1 cursor-pointer px-6 py-3 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center justify-center ${
-                    isPurchased 
-                      ? 'bg-green-500 text-white hover:bg-green-600' 
-                      : 'bg-blue-600 text-white hover:bg-blue-700'
-                  }`}
-                >
-                  {isPurchased ? (
-                    <>
-                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      PURCHASED
-                    </>
-                  ) : (
-                    <>
+
+                {/* Bottom Row: Add to Cart + Buy Now (or just Purchased button) */}
+                {isPurchased ? (
+                  <button
+                    onClick={() => toast.warning('You have already purchased this product! Check your email for access details.')}
+                    className="w-full cursor-pointer px-6 py-3 rounded-lg text-sm font-medium bg-green-500 text-white hover:bg-green-600 transition-colors duration-200 flex items-center justify-center"
+                  >
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    PURCHASED
+                  </button>
+                ) : (
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    {/* Add to Cart - only for paid products */}
+                    {product.priceINR && product.priceINR !== '0' && (
+                      <button
+                        onClick={handleAddToCart}
+                        disabled={cartLoading}
+                        className="flex-1 cursor-pointer bg-purple-600 text-white px-6 py-3 rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center"
+                      >
+                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                        ADD TO CART
+                      </button>
+                    )}
+                    {/* Buy Now Button */}
+                    <button
+                      onClick={() => navigate(`/checkout/${product.id}`)}
+                      className="flex-1 cursor-pointer bg-blue-600 text-white px-6 py-3 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors duration-200 flex items-center justify-center"
+                    >
                       <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m1.6 8L5 3H3m4 10v6a2 2 0 002 2h6a2 2 0 002-2v-6m-8 0V9a2 2 0 012-2h4a2 2 0 012 2v4" />
                       </svg>
                       {product.priceINR && product.priceINR !== '0' ? 'BUY NOW' : 'GET FREE'}
-                    </>
-                  )}
-                </button>
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Details Section */}

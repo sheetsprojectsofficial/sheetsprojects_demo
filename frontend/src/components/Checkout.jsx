@@ -4,19 +4,23 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '../config/firebase';
+import { useCart } from '../context/CartContext';
 
 const Checkout = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [user] = useAuthState(auth);
+  const { cart, clearCart, loading: cartLoading } = useCart();
   const [product, setProduct] = useState(null);
   const [book, setBook] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [isPurchased, setIsPurchased] = useState(false);
-  const [itemType, setItemType] = useState('product'); // 'product' or 'book'
+  const [itemType, setItemType] = useState('product'); // 'product', 'book', or 'cart'
   const [bookFormat, setBookFormat] = useState('soft'); // 'soft' or 'hard'
+  const [isCartCheckout, setIsCartCheckout] = useState(false);
+  const [verifyingPayment, setVerifyingPayment] = useState(false);
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -39,6 +43,36 @@ const Checkout = () => {
   useEffect(() => {
     const fetchItem = async () => {
       try {
+        // Check if it's a cart checkout
+        if (id === 'cart') {
+          setIsCartCheckout(true);
+          setItemType('cart');
+
+          console.log('🛒 Cart Checkout - Cart Loading:', cartLoading);
+          console.log('🛒 Cart Checkout - Cart Data:', cart);
+          console.log('🛒 Cart Checkout - Cart Items:', cart?.items);
+          console.log('🛒 Cart Checkout - Cart Total:', cart?.total);
+
+          // Wait for cart to load before checking if empty
+          if (cartLoading) {
+            console.log('⏳ Cart still loading, waiting...');
+            setLoading(true);
+            return;
+          }
+
+          // Check if cart is empty AFTER cart has loaded
+          if (!cart || !cart.items || cart.items.length === 0) {
+            console.log('❌ Cart is empty, redirecting...');
+            toast.info('Your cart is empty');
+            navigate('/cart');
+            return;
+          }
+
+          console.log('✅ Cart loaded successfully with', cart.items.length, 'items');
+          setLoading(false);
+          return;
+        }
+
         setLoading(true);
 
         // Check if it's a book (id starts with 'book-')
@@ -94,12 +128,13 @@ const Checkout = () => {
     if (id) {
       fetchItem();
     }
-  }, [id, navigate, itemType, searchParams]);
+  }, [id, navigate, itemType, searchParams, cart, cartLoading]);
 
   // Check if user has already purchased this specific item
   useEffect(() => {
     const checkIfItemPurchased = async () => {
       if (!user?.email) return;
+      if (isCartCheckout) return; // Skip for cart checkout
       if (itemType === 'product' && !product?.id) return;
       if (itemType === 'book' && !book?._id) return;
       
@@ -135,7 +170,7 @@ const Checkout = () => {
     };
 
     checkIfItemPurchased();
-  }, [user, product, book, navigate, itemType]);
+  }, [user, product, book, navigate, itemType, isCartCheckout]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -168,14 +203,15 @@ const Checkout = () => {
     };
 
     const bookPrice = getBookPrice();
-    const isFreeItem = itemType === 'book' ? (bookPrice === 0) : (!product?.priceINR || product.priceINR === '0');
+    const isFreeItem = isCartCheckout ? false : (itemType === 'book' ? (bookPrice === 0) : (!product?.priceINR || product.priceINR === '0'));
 
     // Determine if address is required based on product type AND payment status
+    // For cart: always require address
     // For products: Address required if (Physical OR Physical + Soft) OR if it's a paid product
     // For books: all paid books require address (existing behavior)
-    const requiresPhysicalDelivery = itemType === 'product'
+    const requiresPhysicalDelivery = isCartCheckout ? true : (itemType === 'product'
       ? (product?.productType === 'Physical' || product?.productType === 'Physical + Soft')
-      : true; // Books always require address if paid
+      : true); // Books always require address if paid
 
     // Address is required if: (requires physical delivery) OR (is a paid item)
     const requiresAddress = requiresPhysicalDelivery || !isFreeItem;
@@ -235,7 +271,10 @@ const Checkout = () => {
     if (validateForm()) {
       setSubmitting(true);
       try {
-        if (itemType === 'book') {
+        if (isCartCheckout) {
+          // Cart checkout - always requires payment
+          await handleRazorpayPayment('cart');
+        } else if (itemType === 'book') {
           // Debug: Log book price calculation
           console.log('=== BOOK PAYMENT DEBUG ===');
           console.log('Book object:', book);
@@ -332,11 +371,13 @@ const Checkout = () => {
   const handleRazorpayPayment = async (type) => {
     try {
       // Generate unique order ID
-      const orderIdForPayment = type === 'book'
+      const orderIdForPayment = type === 'cart'
+        ? `CART_${Date.now()}_${Math.random().toString(36).substr(2, 9).toUpperCase()}`
+        : type === 'book'
         ? `BOOK_${Date.now()}_${Math.random().toString(36).substr(2, 9).toUpperCase()}`
         : `PROD_${Date.now()}_${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
-      const amount = type === 'book' ? bookPrice : price;
+      const amount = type === 'cart' ? cart.total : (type === 'book' ? bookPrice : price);
 
       // Create Razorpay order
       const orderResponse = await fetch(`${import.meta.env.VITE_API_URL}/payment/create-order`, {
@@ -378,10 +419,11 @@ const Checkout = () => {
         amount: orderData.amount,
         currency: orderData.currency,
         name: 'SheetsProjects',
-        description: type === 'book' ? `Purchase ${book.title}` : `Purchase ${product.title}`,
+        description: type === 'cart' ? `Purchase ${cart.itemCount} items` : (type === 'book' ? `Purchase ${book.title}` : `Purchase ${product.title}`),
         order_id: orderData.orderId,
         handler: async function (response) {
           // Payment successful - verify on backend
+          setVerifyingPayment(true);
           try {
             const verifyData = {
               razorpay_order_id: response.razorpay_order_id,
@@ -393,7 +435,18 @@ const Checkout = () => {
             };
 
             // Add type-specific data
-            if (type === 'book') {
+            if (type === 'cart') {
+              verifyData.cartData = {
+                userId: user.uid,
+                userEmail: user.email,
+                userName: formData.fullName,
+                phoneNumber: formData.phoneNumber,
+                address: formData.address,
+                items: cart.items,
+                totalAmount: cart.total,
+                currency: 'INR'
+              };
+            } else if (type === 'book') {
               verifyData.bookData = {
                 bookId: book._id,
                 userId: user.uid,
@@ -426,18 +479,29 @@ const Checkout = () => {
 
             if (verifyResult.success) {
               toast.success('Payment successful! Order confirmed.');
+
+              // Clear cart if it was a cart checkout
+              if (type === 'cart') {
+                await clearCart();
+              }
+
               setTimeout(() => {
-                if (type === 'book') {
+                setVerifyingPayment(false);
+                if (type === 'cart') {
+                  navigate('/dashboard');
+                } else if (type === 'book') {
                   navigate(`/books/${book.slug}`);
                 } else {
                   navigate('/dashboard');
                 }
               }, 2000);
             } else {
+              setVerifyingPayment(false);
               toast.error(verifyResult.message || 'Payment verification failed');
             }
           } catch (error) {
             console.error('Payment verification error:', error);
+            setVerifyingPayment(false);
             toast.error('Payment verification failed. Please contact support.');
           }
         },
@@ -466,7 +530,7 @@ const Checkout = () => {
     }
   };
 
-  if (loading) {
+  if (loading || (isCartCheckout && cartLoading)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary"></div>
@@ -474,7 +538,7 @@ const Checkout = () => {
     );
   }
 
-  if (!product && !book) {
+  if (!product && !book && !isCartCheckout) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -526,10 +590,11 @@ const Checkout = () => {
     return basePrice;
   };
 
-  const bookPrice = getBookPrice();
+  // Only calculate book price for single book checkout, not cart checkout
+  const bookPrice = isCartCheckout ? 0 : getBookPrice();
   console.log('💵 Final bookPrice:', bookPrice, 'Type:', typeof bookPrice);
-  const isFreePorduct = itemType === 'book' ? (bookPrice === 0) : (!product?.priceINR || product.priceINR === '0');
-  const price = itemType === 'book' ? (bookPrice || 0) : (isFreePorduct ? 0 : parseInt(product?.priceINR || 0));
+  const isFreePorduct = isCartCheckout ? false : (itemType === 'book' ? (bookPrice === 0) : (!product?.priceINR || product.priceINR === '0'));
+  const price = isCartCheckout ? cart.total : (itemType === 'book' ? (bookPrice || 0) : (isFreePorduct ? 0 : parseInt(product?.priceINR || 0)));
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -537,21 +602,24 @@ const Checkout = () => {
         {/* Header */}
         <div className="mb-8">
           <button
-            onClick={() => navigate(itemType === 'book' ? `/books/${book?.slug}` : `/products/${product?.id}`)}
+            onClick={() => navigate(isCartCheckout ? '/cart' : (itemType === 'book' ? `/books/${book?.slug}` : `/products/${product?.id}`))}
             className="mb-6 flex items-center text-brand-primary hover:text-brand-primary transition-colors cursor-pointer"
           >
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            Back to {itemType === 'book' ? 'Book' : 'Product'}
+            Back to {isCartCheckout ? 'Cart' : (itemType === 'book' ? 'Book' : 'Product')}
           </button>
-          
+
           <div className="text-center">
             <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
-              {isFreePorduct ? 'Get Free Access' : 'Checkout'}
+              {isCartCheckout ? 'Cart Checkout' : (isFreePorduct ? 'Get Free Access' : 'Checkout')}
             </h1>
             <p className="text-gray-600">
-              Complete your {isFreePorduct ? 'registration' : 'purchase'} to access this resource
+              {isCartCheckout
+                ? `Complete your purchase for ${cart.itemCount} item${cart.itemCount > 1 ? 's' : ''}`
+                : `Complete your ${isFreePorduct ? 'registration' : 'purchase'} to access this resource`
+              }
             </p>
           </div>
         </div>
@@ -706,8 +774,58 @@ const Checkout = () => {
             {/* Order Details */}
             <div className="bg-white rounded-xl shadow-lg p-6 lg:p-8">
               <h2 className="text-2xl font-semibold text-gray-900 mb-6">Order Details</h2>
-              
-              <div className="flex items-start space-x-4">
+
+              {isCartCheckout ? (
+                // Display all cart items
+                <div className="space-y-4">
+                  {cart.items.map((item, index) => (
+                    <div key={item._id || index} className="flex items-start space-x-4 pb-4 border-b border-gray-200 last:border-0">
+                      {/* Item Image */}
+                      <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        {item.imageUrl ? (
+                          <img
+                            src={item.imageUrl}
+                            alt={item.title}
+                            className="w-full h-full object-cover"
+                            referrerPolicy="no-referrer"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              const parent = e.target.parentElement;
+                              parent.innerHTML = '<svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>';
+                            }}
+                          />
+                        ) : (
+                          <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        )}
+                      </div>
+
+                      {/* Item Info */}
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-900 text-sm mb-1">{item.title}</h3>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`inline-block px-2 py-0.5 text-xs font-medium rounded-full ${
+                            item.itemType === 'book' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
+                          }`}>
+                            {item.itemType === 'book' ? 'Book' : 'Product'}
+                          </span>
+                          {item.itemType === 'book' && item.bookFormat && (
+                            <span className="text-xs text-gray-500">
+                              ({item.bookFormat === 'hard' ? 'Hard Copy' : 'Soft Copy'})
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-600">
+                          Qty: {item.quantity} × ₹{item.price} = ₹{item.price * item.quantity}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                // Display single item
+                <div className="flex items-start space-x-4">
                 {/* Product Image */}
                 <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
                   {itemType === 'book' ? (
@@ -789,7 +907,8 @@ const Checkout = () => {
                     </span>
                   )}
                 </div>
-              </div>
+                </div>
+              )}
             </div>
 
             {/* Total & Payment */}
@@ -871,6 +990,39 @@ const Checkout = () => {
         pauseOnHover
         theme="light"
       />
+
+      {/* Payment Verification Loading Overlay */}
+      {verifyingPayment && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full mx-4">
+            <div className="text-center">
+              {/* Loading Spinner */}
+              <div className="flex justify-center mb-6">
+                <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600"></div>
+              </div>
+
+              {/* Title */}
+              <h2 className="text-2xl font-bold text-gray-900 mb-3">
+                Confirming Your Order
+              </h2>
+
+              {/* Message */}
+              <p className="text-gray-600 mb-4">
+                Please wait while we verify your payment and confirm your order...
+              </p>
+
+              {/* Progress Indicator */}
+              <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
+                <div className="bg-blue-600 h-2 rounded-full animate-pulse" style={{ width: '70%' }}></div>
+              </div>
+
+              <p className="text-sm text-gray-500">
+                This may take a few seconds. Please do not close this window.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
