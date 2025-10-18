@@ -18,12 +18,9 @@ export const CartProvider = ({ children }) => {
 
   // Fetch cart when user logs in
   useEffect(() => {
-    console.log('🔄 CartContext: User changed:', user?.email);
     if (user) {
-      console.log('👤 CartContext: User logged in, fetching cart...');
       fetchCart();
     } else {
-      console.log('👤 CartContext: No user, clearing cart');
       setCart({ items: [], total: 0, itemCount: 0 });
     }
   }, [user]);
@@ -32,7 +29,6 @@ export const CartProvider = ({ children }) => {
     if (!user) return;
 
     setLoading(true);
-    console.log('📡 CartContext: Fetching cart for user:', user.uid);
     try {
       const token = await user.getIdToken();
       const response = await fetch(`${import.meta.env.VITE_API_URL}/cart/${user.uid}`, {
@@ -42,22 +38,13 @@ export const CartProvider = ({ children }) => {
       });
 
       const data = await response.json();
-      console.log('📦 CartContext: Cart response:', data);
-
       if (data.success) {
-        console.log('✅ CartContext: Cart loaded:', data.cart);
-        console.log('   - Items:', data.cart.items.length);
-        console.log('   - Total:', data.cart.total);
-        console.log('   - Item Count:', data.cart.itemCount);
         setCart(data.cart);
-      } else {
-        console.log('❌ CartContext: Failed to load cart');
       }
     } catch (error) {
-      console.error('❌ CartContext: Error fetching cart:', error);
+      console.error('Error fetching cart:', error);
     } finally {
       setLoading(false);
-      console.log('🏁 CartContext: Fetch complete, loading:', false);
     }
   };
 
@@ -93,7 +80,6 @@ export const CartProvider = ({ children }) => {
         return { success: false, message: data.message };
       }
     } catch (error) {
-      console.error('Error adding to cart:', error);
       return { success: false, message: 'Error adding to cart' };
     } finally {
       setLoading(false);
@@ -119,7 +105,6 @@ export const CartProvider = ({ children }) => {
         setCart(data.cart);
       }
     } catch (error) {
-      console.error('Error removing from cart:', error);
     } finally {
       setLoading(false);
     }
@@ -146,7 +131,7 @@ export const CartProvider = ({ children }) => {
         setCart(data.cart);
       }
     } catch (error) {
-      console.error('Error updating quantity:', error);
+      console.error('Error updating quantity:', error.message);
     } finally {
       setLoading(false);
     }

@@ -65,7 +65,6 @@ const CustomerDashboard = () => {
       const userEmail = user?.email;
       const userPhone = user?.phoneNumber;
 
-      console.log('Fetching bookings for:', { userEmail, userPhone });
 
       const response = await axios.get(`${API_BASE_URL}/api/bookings/my-bookings`, {
         params: {
@@ -74,7 +73,6 @@ const CustomerDashboard = () => {
         }
       });
 
-      console.log('Bookings response:', response.data);
 
       if (response.data.success) {
         setMyBookings(response.data.bookings || []);
