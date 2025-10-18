@@ -224,6 +224,14 @@ const Dashboard = () => {
                   <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Management</h3>
                 </div>
                 <button
+                  onClick={() => handleTabChange('invoices')}
+                  className={`${activeTab === 'invoices' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer px-3 py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full`}
+                  style={{ display: 'flex', alignItems: 'center', width: '100%' }}
+                >
+                  <span className="text-lg mr-3">🧾</span>
+                  <span className="flex-1 text-left">Invoice</span>
+                </button>
+                <button
                   onClick={() => handleTabChange('landing')}
                   className={`${activeTab === 'landing' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer px-3 py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full`}
                   style={{ display: 'flex', alignItems: 'center', width: '100%' }}
@@ -412,6 +420,7 @@ const Dashboard = () => {
             <div className="max-w-7xl mx-auto">
               {isAdmin() ? (
                 <div className="space-y-6">
+                  {activeTab === 'invoices' && <Invoices />}
                   {activeTab === 'landing' && <LandingPageManager />}
                   {activeTab === 'products' && <AdminProducts />}
                   {activeTab === 'blogs' && <AdminBlogs />}
