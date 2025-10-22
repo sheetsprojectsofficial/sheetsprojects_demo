@@ -263,6 +263,7 @@ const BookingForm = () => {
 
   // Get hotel details from settings
   const hotelName = settings?.['Hotel Name']?.value || 'Our Hotel';
+  const hotelDescription = settings?.['Hotel Description']?.value || 'Welcome to our hotel';
   const hotelImage = settings?.['Hotel Image']?.value || '';
 
   return (
@@ -279,8 +280,8 @@ const BookingForm = () => {
           <div className="space-y-6">
             {/* Hotel Name */}
             <div className="bg-white rounded-2xl shadow-xl p-8">
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">{hotelName}</h2>
-              <p className="text-gray-600">Welcome to our hotel</p>
+              <h2 className="text-3xl font-bold text-gray-900 mb-2 text-center">{hotelName}</h2>
+              <p className="text-gray-600 font-semibold">{hotelDescription}</p>
             </div>
 
             {/* Hotel Image */}
