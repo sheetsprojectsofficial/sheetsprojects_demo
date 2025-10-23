@@ -369,9 +369,7 @@ const BookingForm = () => {
           });
         } else if (response.data.integrationStatus) {
           // Show success for successful integrations
-          if (response.data.integrationStatus.calendar && response.data.integrationStatus.sheets) {
-            toast.success('Booking added to Calendar and Sheets successfully!');
-          }
+          console.log(response.data.integrationStatus);
         }
 
         // Reset form
