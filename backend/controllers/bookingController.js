@@ -1,6 +1,29 @@
 import Booking from '../models/Booking.js';
 import { checkRoomAvailability, createCalendarEvent, deleteCalendarEvent } from '../services/calendarService.js';
 import { addBookingToSheet, updateBookingInSheet } from '../services/bookingSheetService.js';
+import { fetchRoomDataFromSheet } from '../services/roomService.js';
+import { createPaymentOrder, verifyPaymentSignature, getPaymentDetails } from '../services/paymentService.js';
+
+/**
+ * Get all rooms from Google Sheets
+ */
+export const getRooms = async (req, res) => {
+  try {
+    const rooms = await fetchRoomDataFromSheet();
+
+    return res.status(200).json({
+      success: true,
+      rooms
+    });
+  } catch (error) {
+    console.error('Error fetching rooms:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch rooms',
+      error: error.message
+    });
+  }
+};
 
 /**
  * Check room availability
@@ -82,6 +105,24 @@ export const createBooking = async (req, res) => {
         success: false,
         message: 'All fields are required'
       });
+    }
+
+    // Validate phone number (10 digits or 11 if starting with 0)
+    const phoneStr = phone.toString().replace(/\D/g, ''); // Remove non-numeric characters
+    if (phoneStr.startsWith('0')) {
+      if (phoneStr.length !== 11) {
+        return res.status(400).json({
+          success: false,
+          message: 'Phone number starting with 0 must be 11 digits'
+        });
+      }
+    } else {
+      if (phoneStr.length !== 10) {
+        return res.status(400).json({
+          success: false,
+          message: 'Phone number must be 10 digits'
+        });
+      }
     }
 
     // Validate room number
@@ -178,8 +219,17 @@ export const createBooking = async (req, res) => {
 
     await booking.save();
 
+    // Track what succeeded and what failed
+    const integrationStatus = {
+      calendar: false,
+      sheets: false,
+      calendarError: null,
+      sheetsError: null
+    };
+
     // Create event in Google Calendar
     try {
+      console.log(`Creating calendar event for booking ${booking._id}, room ${roomNumber}`);
       const calendarResult = await createCalendarEvent({
         roomNumber,
         name,
@@ -195,18 +245,28 @@ export const createBooking = async (req, res) => {
       // Update booking with calendar event ID
       booking.googleCalendarEventId = calendarResult.eventId;
       await booking.save();
+      integrationStatus.calendar = true;
+      console.log(`✓ Calendar event created: ${calendarResult.eventId}`);
     } catch (calendarError) {
-      console.error('Error creating calendar event:', calendarError);
-      // Continue even if calendar creation fails
+      console.error('✗ Error creating calendar event:', calendarError.message);
+      console.error('Calendar error details:', calendarError);
+      integrationStatus.calendarError = calendarError.message;
     }
 
     // Add to Google Sheets
     try {
-      await addBookingToSheet(booking);
+      console.log(`Adding booking ${booking._id} to Google Sheets`);
+      const sheetResult = await addBookingToSheet(booking);
+      integrationStatus.sheets = true;
+      console.log(`✓ Booking added to sheet: ${sheetResult.updatedRange}`);
     } catch (sheetError) {
-      console.error('Error adding booking to sheet:', sheetError);
-      // Continue even if sheet addition fails
+      console.error('✗ Error adding booking to sheet:', sheetError.message);
+      console.error('Sheet error details:', sheetError);
+      integrationStatus.sheetsError = sheetError.message;
     }
+
+    // Log integration status
+    console.log('Integration status:', integrationStatus);
 
     return res.status(201).json({
       success: true,
@@ -225,6 +285,14 @@ export const createBooking = async (req, res) => {
         checkOutDateTime: booking.checkOutDateTime,
         status: booking.status,
         createdAt: booking.createdAt
+      },
+      integrationStatus: {
+        calendar: integrationStatus.calendar,
+        sheets: integrationStatus.sheets,
+        warnings: [
+          !integrationStatus.calendar && integrationStatus.calendarError ? `Calendar: ${integrationStatus.calendarError}` : null,
+          !integrationStatus.sheets && integrationStatus.sheetsError ? `Sheets: ${integrationStatus.sheetsError}` : null
+        ].filter(Boolean)
       }
     });
   } catch (error) {
@@ -482,12 +550,247 @@ export const updateBookingStatus = async (req, res) => {
   }
 };
 
+/**
+ * Create payment order for booking
+ */
+export const createPaymentIntent = async (req, res) => {
+  try {
+    const { roomNumber, checkInDate, checkOutDate, name, phone, email } = req.body;
+
+    if (!roomNumber) {
+      return res.status(400).json({
+        success: false,
+        message: 'Room number is required'
+      });
+    }
+
+    // Fetch room data to get price
+    const rooms = await fetchRoomDataFromSheet();
+    const room = rooms.find(r => r.id === roomNumber);
+
+    if (!room) {
+      return res.status(404).json({
+        success: false,
+        message: 'Room not found'
+      });
+    }
+
+    // Calculate number of nights
+    const checkIn = new Date(checkInDate);
+    const checkOut = new Date(checkOutDate);
+    const nights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
+
+    // Calculate total amount
+    const totalAmount = room.price * nights;
+
+    // Create Razorpay order
+    const paymentOrder = await createPaymentOrder(totalAmount, {
+      roomNumber,
+      name,
+      phone,
+      email,
+      checkInDate,
+      checkOutDate
+    });
+
+    return res.status(200).json({
+      success: true,
+      order: paymentOrder,
+      amount: totalAmount,
+      nights,
+      roomPrice: room.price
+    });
+  } catch (error) {
+    console.error('Error creating payment intent:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to create payment order',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Verify payment and create booking
+ */
+export const verifyPaymentAndCreateBooking = async (req, res) => {
+  try {
+    const {
+      orderId,
+      paymentId,
+      signature,
+      bookingData
+    } = req.body;
+
+    // Verify payment signature
+    const isValid = verifyPaymentSignature(orderId, paymentId, signature);
+
+    if (!isValid) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid payment signature'
+      });
+    }
+
+    // Get payment details
+    const paymentDetails = await getPaymentDetails(paymentId);
+
+    if (paymentDetails.payment.status !== 'captured') {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment not captured'
+      });
+    }
+
+    // Extract booking data
+    const {
+      name, phone, email, address, aadharNumber,
+      roomNumber, numberOfAdults, adults,
+      checkInDateTime, checkOutDateTime
+    } = bookingData;
+
+    // Validate phone number before creating booking
+    const phoneStr = phone.toString().replace(/\D/g, '');
+    if (phoneStr.startsWith('0')) {
+      if (phoneStr.length !== 11) {
+        return res.status(400).json({
+          success: false,
+          message: 'Phone number starting with 0 must be 11 digits'
+        });
+      }
+    } else {
+      if (phoneStr.length !== 10) {
+        return res.status(400).json({
+          success: false,
+          message: 'Phone number must be 10 digits'
+        });
+      }
+    }
+
+    // Check availability again before creating booking
+    const availabilityResult = await checkRoomAvailability(roomNumber, checkInDateTime, checkOutDateTime);
+
+    if (!availabilityResult.available) {
+      // Initiate refund if room is no longer available
+      // TODO: Implement refund logic
+      return res.status(409).json({
+        success: false,
+        message: `Room ${roomNumber} is no longer available. Refund will be initiated.`
+      });
+    }
+
+    // Create booking in database
+    const booking = new Booking({
+      name,
+      phone,
+      email,
+      address,
+      aadharNumber,
+      numberOfAdults,
+      adults,
+      roomNumber,
+      checkInDateTime,
+      checkOutDateTime,
+      status: 'confirmed',
+      paymentId: paymentId,
+      paymentAmount: paymentDetails.payment.amount,
+      paymentStatus: 'paid'
+    });
+
+    await booking.save();
+
+    // Track what succeeded and what failed
+    const integrationStatus = {
+      calendar: false,
+      sheets: false,
+      calendarError: null,
+      sheetsError: null
+    };
+
+    // Create event in Google Calendar
+    try {
+      console.log(`Creating calendar event for booking ${booking._id}, room ${roomNumber}`);
+      const calendarResult = await createCalendarEvent({
+        roomNumber,
+        name,
+        phone,
+        email,
+        aadharNumber,
+        numberOfAdults,
+        adults,
+        checkInDateTime,
+        checkOutDateTime
+      });
+
+      // Update booking with calendar event ID
+      booking.googleCalendarEventId = calendarResult.eventId;
+      await booking.save();
+      integrationStatus.calendar = true;
+      console.log(`✓ Calendar event created: ${calendarResult.eventId}`);
+    } catch (calendarError) {
+      console.error('✗ Error creating calendar event:', calendarError.message);
+      console.error('Calendar error details:', calendarError);
+      integrationStatus.calendarError = calendarError.message;
+    }
+
+    // Add to Google Sheets
+    try {
+      console.log(`Adding booking ${booking._id} to Google Sheets`);
+      const sheetResult = await addBookingToSheet(booking);
+      integrationStatus.sheets = true;
+      console.log(`✓ Booking added to sheet: ${sheetResult.updatedRange}`);
+    } catch (sheetError) {
+      console.error('✗ Error adding booking to sheet:', sheetError.message);
+      console.error('Sheet error details:', sheetError);
+      integrationStatus.sheetsError = sheetError.message;
+    }
+
+    // Log integration status
+    console.log('Integration status:', integrationStatus);
+
+    return res.status(201).json({
+      success: true,
+      message: 'Payment verified and booking confirmed successfully',
+      booking: {
+        id: booking._id,
+        name: booking.name,
+        phone: booking.phone,
+        email: booking.email,
+        roomNumber: booking.roomNumber,
+        checkInDateTime: booking.checkInDateTime,
+        checkOutDateTime: booking.checkOutDateTime,
+        status: booking.status,
+        paymentId: booking.paymentId,
+        paymentAmount: booking.paymentAmount
+      },
+      integrationStatus: {
+        calendar: integrationStatus.calendar,
+        sheets: integrationStatus.sheets,
+        warnings: [
+          !integrationStatus.calendar && integrationStatus.calendarError ? `Calendar: ${integrationStatus.calendarError}` : null,
+          !integrationStatus.sheets && integrationStatus.sheetsError ? `Sheets: ${integrationStatus.sheetsError}` : null
+        ].filter(Boolean)
+      }
+    });
+  } catch (error) {
+    console.error('Error verifying payment and creating booking:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to verify payment and create booking',
+      error: error.message
+    });
+  }
+};
+
 export default {
+  getRooms,
   checkAvailability,
   createBooking,
   getMyBookings,
   getAllBookings,
   getBookingById,
   cancelBooking,
-  updateBookingStatus
+  updateBookingStatus,
+  createPaymentIntent,
+  verifyPaymentAndCreateBooking
 };

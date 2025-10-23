@@ -9,13 +9,6 @@ import { optimizeImageUrl } from '../utils/imageUtils';
 const API_BASE_URL = import.meta.env.VITE_API_URL|| 'http://localhost:5004';
 console.log(API_BASE_URL);
 
-
-const ROOM_INFO = {
-  '1': { name: 'Standard Room', capacity: 2 },
-  '2': { name: 'Deluxe Room', capacity: 3 },
-  '3': { name: 'Suite Room', capacity: 4 }
-};
-
 const BookingForm = () => {
   const navigate = useNavigate();
   const { settings } = useSettings();
@@ -39,9 +32,39 @@ const BookingForm = () => {
   const [availabilityMessage, setAvailabilityMessage] = useState('');
   const [imageError, setImageError] = useState(false);
 
+  // New states for dynamic room data
+  const [rooms, setRooms] = useState([]);
+  const [selectedRoom, setSelectedRoom] = useState(null);
+  const [roomPrice, setRoomPrice] = useState(0);
+  const [totalAmount, setTotalAmount] = useState(0);
+  const [processingPayment, setProcessingPayment] = useState(false);
+
   // Get primary and secondary colors from settings
   const primaryColor = settings?.primaryColor?.value || '#6366f1';
   const secondaryColor = settings?.secondaryColor?.value || '#8b5cf6';
+
+  // Fetch rooms data on component mount
+  useEffect(() => {
+    fetchRooms();
+  }, []);
+
+  const fetchRooms = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/bookings/rooms`);
+      if (response.data.success) {
+        setRooms(response.data.rooms);
+        console.log('Fetched rooms:', response.data.rooms);
+      }
+    } catch (error) {
+      console.error('Error fetching rooms:', error);
+      // Fallback to default rooms if API fails
+      setRooms([
+        { id: '1', name: 'Room1', capacity: 2, price: 1300, displayName: 'Room 1 (2 Guests)' },
+        { id: '2', name: 'Room 2', capacity: 3, price: 2000, displayName: 'Room 2 (3 Guests)' },
+        { id: '3', name: 'Room 3', capacity: 4, price: 3000, displayName: 'Room 3 (4 Guests)' }
+      ]);
+    }
+  };
 
   // Update adults array when numberOfAdults changes
   useEffect(() => {
@@ -62,6 +85,27 @@ const BookingForm = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+
+    // Special handling for phone number
+    if (name === 'phone') {
+      // Remove non-numeric characters
+      const numericValue = value.replace(/\D/g, '');
+
+      // Limit length based on first digit
+      let maxLength = 10;
+      if (numericValue.startsWith('0')) {
+        maxLength = 11;
+      }
+
+      const limitedValue = numericValue.slice(0, maxLength);
+
+      setFormData(prev => ({
+        ...prev,
+        [name]: limitedValue
+      }));
+      return;
+    }
+
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -73,10 +117,35 @@ const BookingForm = () => {
       setAvailabilityMessage('');
     }
 
-    // Reset numberOfAdults when room changes
+    // Handle room selection
     if (name === 'roomNumber') {
       setFormData(prev => ({ ...prev, numberOfAdults: '' }));
       setAdults([]);
+
+      const room = rooms.find(r => r.id === value);
+      setSelectedRoom(room);
+      if (room) {
+        setRoomPrice(room.price);
+        calculateTotalAmount(room.price, formData.checkInDate, formData.checkOutDate);
+      }
+    }
+
+    // Update total amount when dates change
+    if ((name === 'checkInDate' || name === 'checkOutDate') && selectedRoom) {
+      const newCheckIn = name === 'checkInDate' ? value : formData.checkInDate;
+      const newCheckOut = name === 'checkOutDate' ? value : formData.checkOutDate;
+      calculateTotalAmount(selectedRoom.price, newCheckIn, newCheckOut);
+    }
+  };
+
+  const calculateTotalAmount = (price, checkIn, checkOut) => {
+    if (checkIn && checkOut && price) {
+      const checkInDate = new Date(checkIn);
+      const checkOutDate = new Date(checkOut);
+      const nights = Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
+      if (nights > 0) {
+        setTotalAmount(price * nights);
+      }
     }
   };
 
@@ -191,6 +260,20 @@ const BookingForm = () => {
       return;
     }
 
+    // Validate phone number length
+    const phoneLength = formData.phone.length;
+    if (formData.phone.startsWith('0')) {
+      if (phoneLength !== 11) {
+        toast.error('Phone number starting with 0 must be 11 digits');
+        return;
+      }
+    } else {
+      if (phoneLength !== 10) {
+        toast.error('Phone number must be 10 digits');
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
@@ -211,10 +294,85 @@ const BookingForm = () => {
         }))
       };
 
-      const response = await axios.post(`${API_BASE_URL}/bookings`, bookingData);
+      // Create payment order
+      const paymentResponse = await axios.post(`${API_BASE_URL}/bookings/create-payment`, {
+        roomNumber: formData.roomNumber,
+        checkInDate: formData.checkInDate,
+        checkOutDate: formData.checkOutDate,
+        name: adults[0].name,
+        phone: formData.phone,
+        email: user?.email || ''
+      });
+
+      if (paymentResponse.data.success) {
+        // Initialize Razorpay payment
+        await initializeRazorpayPayment(paymentResponse.data, bookingData);
+      }
+    } catch (error) {
+      console.error('Error creating payment:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to create payment. Please try again.';
+      toast.error(errorMessage);
+      setLoading(false);
+    }
+  };
+
+  const initializeRazorpayPayment = async (paymentData, bookingData) => {
+    const options = {
+      key: paymentData.order.key,
+      amount: paymentData.order.amount,
+      currency: paymentData.order.currency,
+      order_id: paymentData.order.orderId,
+      name: 'Hotel Booking',
+      description: `Room ${bookingData.roomNumber} - ${paymentData.nights} nights`,
+      handler: async function (response) {
+        // Payment success - verify and create booking
+        await verifyPaymentAndCreateBooking(response, bookingData);
+      },
+      prefill: {
+        name: bookingData.name,
+        email: bookingData.email,
+        contact: bookingData.phone
+      },
+      theme: {
+        color: primaryColor
+      },
+      modal: {
+        ondismiss: function() {
+          setLoading(false);
+          toast.error('Payment cancelled');
+        }
+      }
+    };
+
+    const razorpay = new window.Razorpay(options);
+    razorpay.open();
+  };
+
+  const verifyPaymentAndCreateBooking = async (paymentResponse, bookingData) => {
+    setProcessingPayment(true);
+
+    try {
+      const response = await axios.post(`${API_BASE_URL}/bookings/verify-payment`, {
+        orderId: paymentResponse.razorpay_order_id,
+        paymentId: paymentResponse.razorpay_payment_id,
+        signature: paymentResponse.razorpay_signature,
+        bookingData
+      });
 
       if (response.data.success) {
-        toast.success('Booking confirmed successfully!');
+        toast.success('Payment successful! Booking confirmed!');
+
+        // Check integration status and show warnings if any
+        if (response.data.integrationStatus && response.data.integrationStatus.warnings && response.data.integrationStatus.warnings.length > 0) {
+          response.data.integrationStatus.warnings.forEach(warning => {
+            toast.warning(warning, { autoClose: 5000 });
+          });
+        } else if (response.data.integrationStatus) {
+          // Show success for successful integrations
+          if (response.data.integrationStatus.calendar && response.data.integrationStatus.sheets) {
+            toast.success('Booking added to Calendar and Sheets successfully!');
+          }
+        }
 
         // Reset form
         setFormData({
@@ -230,18 +388,22 @@ const BookingForm = () => {
         setIsRoomAvailable(null);
         setAvailabilityMessage('');
         setCurrentStep(1);
+        setSelectedRoom(null);
+        setRoomPrice(0);
+        setTotalAmount(0);
 
         // Redirect to dashboard
         setTimeout(() => {
           navigate('/dashboard');
-        }, 2000);
+        }, 3000);
       }
     } catch (error) {
-      console.error('Error creating booking:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to create booking. Please try again.';
+      console.error('Error verifying payment:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to verify payment. Please contact support.';
       toast.error(errorMessage);
     } finally {
       setLoading(false);
+      setProcessingPayment(false);
     }
   };
 
@@ -454,11 +616,36 @@ const BookingForm = () => {
                       }}
                     >
                       <option value="">Select a room</option>
-                      <option value="1">Room 1 - Standard Room (2 Guests)</option>
-                      <option value="2">Room 2 - Deluxe Room (3 Guests)</option>
-                      <option value="3">Room 3 - Suite Room (4 Guests)</option>
+                      {rooms.map(room => (
+                        <option key={room.id} value={room.id}>
+                          {room.displayName || `${room.name} (${room.capacity} Guests)`}
+                        </option>
+                      ))}
                     </select>
                   </div>
+
+                  {/* Price Display */}
+                  {selectedRoom && formData.checkInDate && formData.checkOutDate && (
+                    <div className="p-4 bg-gray-50 border-2 border-gray-200 rounded-lg">
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <span className="text-gray-600">Room Price:</span>
+                          <span className="ml-2 font-semibold">₹{roomPrice}/night</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Total Amount:</span>
+                          <span className="ml-2 font-bold text-lg" style={{ color: primaryColor }}>
+                            ₹{totalAmount}
+                          </span>
+                        </div>
+                      </div>
+                      {totalAmount > 0 && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          ({Math.ceil((new Date(formData.checkOutDate) - new Date(formData.checkInDate)) / (1000 * 60 * 60 * 24))} nights)
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Availability Status */}
                   {checkingAvailability && (
@@ -531,13 +718,15 @@ const BookingForm = () => {
                       }}
                     >
                       <option value="">Select number of guests</option>
-                      {Array.from({ length: ROOM_INFO[formData.roomNumber].capacity }, (_, i) => i + 1).map(num => (
+                      {selectedRoom && Array.from({ length: selectedRoom.capacity }, (_, i) => i + 1).map(num => (
                         <option key={num} value={num}>{num} {num === 1 ? 'Guest' : 'Guests'}</option>
                       ))}
                     </select>
-                    <p className="text-sm text-gray-600 mt-1">
-                      {ROOM_INFO[formData.roomNumber].name} can accommodate up to {ROOM_INFO[formData.roomNumber].capacity} guests
-                    </p>
+                    {selectedRoom && (
+                      <p className="text-sm text-gray-600 mt-1">
+                        {selectedRoom.name} can accommodate up to {selectedRoom.capacity} guests
+                      </p>
+                    )}
                   </div>
 
                   {/* Navigation Buttons */}
@@ -686,8 +875,15 @@ const BookingForm = () => {
                         focusRingColor: primaryColor,
                         '--tw-ring-color': primaryColor
                       }}
-                      placeholder="Enter your phone number"
+                      placeholder="Enter phone (10 digits or 11 if starting with 0)"
                     />
+                    <p className="text-xs text-gray-500 mt-1">
+                      {formData.phone && (
+                        formData.phone.startsWith('0')
+                          ? `11 digits required (${formData.phone.length}/11)`
+                          : `10 digits required (${formData.phone.length}/10)`
+                      )}
+                    </p>
                   </div>
 
                   {/* Address */}

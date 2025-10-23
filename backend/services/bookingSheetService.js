@@ -30,8 +30,11 @@ const authenticateGoogleSheets = () => {
  */
 export const addBookingToSheet = async (bookingData) => {
   try {
+    console.log(`Adding booking ${bookingData._id} to Google Sheets...`);
     const sheets = authenticateGoogleSheets();
     const spreadsheetId = process.env.BOOKINGS_SHEET_ID;
+
+    console.log(`Using bookings spreadsheet ID: ${spreadsheetId}`);
 
     if (!spreadsheetId) {
       throw new Error('BOOKINGS_SHEET_ID is not set in environment variables');
@@ -61,9 +64,12 @@ export const addBookingToSheet = async (bookingData) => {
     ];
 
     // Check if sheet has headers, if not create them
+    console.log('Ensuring sheet has proper headers...');
     await ensureSheetHeaders(sheets, spreadsheetId);
 
     // Append the row
+    console.log('Appending booking row to sheet...');
+    console.log('Row data:', row);
     const response = await sheets.spreadsheets.values.append({
       spreadsheetId,
       range: 'Bookings!A:N',
@@ -73,12 +79,15 @@ export const addBookingToSheet = async (bookingData) => {
       }
     });
 
+    console.log(`✓ Booking successfully added to sheet at ${response.data.updates.updatedRange}`);
+
     return {
       success: true,
       updatedRange: response.data.updates.updatedRange
     };
   } catch (error) {
-    console.error('Error adding booking to Google Sheets:', error);
+    console.error('✗ Error adding booking to Google Sheets:', error.message);
+    console.error('Full error:', error);
     throw new Error(`Failed to add booking to sheet: ${error.message}`);
   }
 };
@@ -88,6 +97,7 @@ export const addBookingToSheet = async (bookingData) => {
  */
 const ensureSheetHeaders = async (sheets, spreadsheetId) => {
   try {
+    console.log('Checking if Bookings sheet has headers...');
     // Try to get the first row
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
@@ -95,9 +105,11 @@ const ensureSheetHeaders = async (sheets, spreadsheetId) => {
     });
 
     const firstRow = response.data.values?.[0];
+    console.log('First row:', firstRow);
 
     // If first row is empty or doesn't have all headers, set them
     if (!firstRow || firstRow.length < 14) {
+      console.log('Headers missing or incomplete, creating headers...');
       const headers = [
         'Booking ID',
         'Name',
@@ -125,6 +137,7 @@ const ensureSheetHeaders = async (sheets, spreadsheetId) => {
       });
 
       // Format header row (make it bold)
+      console.log('Formatting header row...');
       await sheets.spreadsheets.batchUpdate({
         spreadsheetId,
         resource: {
@@ -162,9 +175,13 @@ const ensureSheetHeaders = async (sheets, spreadsheetId) => {
           ]
         }
       });
+      console.log('✓ Headers created and formatted successfully');
+    } else {
+      console.log('✓ Headers already exist');
     }
   } catch (error) {
-    console.error('Error ensuring sheet headers:', error);
+    console.error('✗ Error ensuring sheet headers:', error.message);
+    console.error('Full error:', error);
     // Don't throw - this is not critical
   }
 };

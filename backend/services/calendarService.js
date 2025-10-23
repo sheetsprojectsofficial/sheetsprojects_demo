@@ -1,11 +1,8 @@
 import { google } from 'googleapis';
+import { getRoomCalendarIds } from './roomService.js';
 
-// Calendar IDs for each room (to be set in .env)
-const ROOM_CALENDAR_IDS = {
-  '1': process.env.ROOM_1_CALENDAR_ID,
-  '2': process.env.ROOM_2_CALENDAR_ID,
-  '3': process.env.ROOM_3_CALENDAR_ID
-};
+// Cache for room calendar IDs
+let ROOM_CALENDAR_IDS = null;
 
 const authenticateGoogleCalendar = () => {
   const credentials = {
@@ -33,11 +30,42 @@ const authenticateGoogleCalendar = () => {
 };
 
 /**
+ * Get or fetch room calendar IDs
+ */
+const getRoomCalendarId = async (roomNumber) => {
+  console.log(`Getting calendar ID for room ${roomNumber}...`);
+
+  // Fetch calendar IDs from Google Sheets if not cached
+  if (!ROOM_CALENDAR_IDS) {
+    console.log('Calendar IDs not cached, fetching from Google Sheets...');
+    ROOM_CALENDAR_IDS = await getRoomCalendarIds();
+  }
+
+  const calendarId = ROOM_CALENDAR_IDS[roomNumber];
+
+  if (!calendarId) {
+    console.log(`Calendar ID not found in cache for room ${roomNumber}, refreshing...`);
+    // Try to refresh from Google Sheets
+    ROOM_CALENDAR_IDS = await getRoomCalendarIds();
+    const refreshedId = ROOM_CALENDAR_IDS[roomNumber];
+    if (refreshedId) {
+      console.log(`✓ Found calendar ID for room ${roomNumber} after refresh`);
+    } else {
+      console.error(`✗ No calendar ID found for room ${roomNumber} even after refresh`);
+    }
+    return refreshedId;
+  }
+
+  console.log(`✓ Using cached calendar ID for room ${roomNumber}`);
+  return calendarId;
+};
+
+/**
  * Check if a room is available for the given time slot
  */
 export const checkRoomAvailability = async (roomNumber, checkInDateTime, checkOutDateTime) => {
   try {
-    const calendarId = ROOM_CALENDAR_IDS[roomNumber];
+    const calendarId = await getRoomCalendarId(roomNumber);
 
     if (!calendarId) {
       throw new Error(`Calendar ID not configured for Room ${roomNumber}`);
@@ -83,7 +111,7 @@ export const checkRoomAvailability = async (roomNumber, checkInDateTime, checkOu
 export const createCalendarEvent = async (bookingData) => {
   try {
     const { roomNumber, name, phone, email, checkInDateTime, checkOutDateTime, aadharNumber, numberOfAdults, adults } = bookingData;
-    const calendarId = ROOM_CALENDAR_IDS[roomNumber];
+    const calendarId = await getRoomCalendarId(roomNumber);
 
     if (!calendarId) {
       throw new Error(`Calendar ID not configured for Room ${roomNumber}`);
@@ -142,7 +170,7 @@ ${adultsDetails}
  */
 export const deleteCalendarEvent = async (roomNumber, eventId) => {
   try {
-    const calendarId = ROOM_CALENDAR_IDS[roomNumber];
+    const calendarId = await getRoomCalendarId(roomNumber);
 
     if (!calendarId) {
       throw new Error(`Calendar ID not configured for Room ${roomNumber}`);
