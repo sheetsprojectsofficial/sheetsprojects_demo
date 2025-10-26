@@ -662,19 +662,19 @@ const BookingForm = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-6 sm:py-8 lg:py-12 px-3 sm:px-4 lg:px-8">
       <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
+        <div className="text-center mb-6 sm:mb-8">
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
             Room Booking
           </h1>
-          <p className="text-lg text-gray-600">Book your stay with us</p>
+          <p className="text-base sm:text-lg text-gray-600">Book your stay with us</p>
         </div>
 
         {/* Two Column Grid Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
           {/* Left Column - Slideshow & Chatbot */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {/* Combined Hotel & Room Images Slideshow */}
             {(hotelImage ||
               rooms.filter((room) => room.imageUrl).length > 0) && (
@@ -932,7 +932,7 @@ const BookingForm = () => {
               <div
                 className="p-4 text-white"
                 style={{
-                  background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
+                  backgroundColor: 'var(--brand-primary)',
                 }}
               >
                 <h3 className="text-xl font-bold flex items-center">
@@ -974,7 +974,7 @@ const BookingForm = () => {
                       style={
                         msg.type === "user"
                           ? {
-                              background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
+                              backgroundColor: 'var(--brand-primary)',
                             }
                           : {}
                       }
@@ -999,10 +999,12 @@ const BookingForm = () => {
                   />
                   <button
                     onClick={handleSendMessage}
-                    className="text-white rounded-full p-2 hover:opacity-90 transition-all"
+                    className="text-white cursor-pointer rounded-full p-2 transition-all"
                     style={{
-                      background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
+                      backgroundColor: 'var(--brand-primary)',
                     }}
+                    onMouseEnter={(e) => e.target.style.backgroundColor = 'color-mix(in srgb, var(--brand-primary) 80%, black)'}
+                    onMouseLeave={(e) => e.target.style.backgroundColor = 'var(--brand-primary)'}
                     aria-label="Send message"
                   >
                     <svg
@@ -1015,7 +1017,7 @@ const BookingForm = () => {
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         strokeWidth={2}
-                        d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                        d="M14 5l7 7m0 0l-7 7m7-7H3"
                       />
                     </svg>
                   </button>
@@ -1027,16 +1029,16 @@ const BookingForm = () => {
           </div>
 
 
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
 
 
             {/* Booking Form */}
-            <div className="bg-white rounded-2xl shadow-xl p-8 h-fit">
+            <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8 h-fit">
             {/* Step Indicator */}
-            <div className="mb-8">
-              <div className="relative px-8">
+            <div className="mb-6 sm:mb-8">
+              <div className="relative px-4 sm:px-8">
                 {/* Progress Line */}
-                <div className="absolute top-5 left-8 right-8 h-1 bg-gray-200">
+                <div className="absolute top-4 sm:top-5 left-4 sm:left-8 right-4 sm:right-8 h-0.5 sm:h-1 bg-gray-200">
                   <div
                     className="h-full transition-all duration-300"
                     style={{
@@ -1048,11 +1050,11 @@ const BookingForm = () => {
                 </div>
 
                 {/* Steps */}
-                <div className="relative flex justify-between space-x-4">
+                <div className="relative flex justify-between">
                   {[1, 2, 3, 4].map((step) => (
-                    <div key={step} className="flex flex-col items-center">
+                    <div key={step} className="flex flex-col items-center flex-1">
                       <div
-                        className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold mb-2 relative z-10 ${
+                        className={`flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full font-semibold mb-2 relative z-10 text-sm sm:text-base ${
                           currentStep >= step
                             ? "text-white"
                             : "bg-gray-200 text-gray-600"
@@ -1070,7 +1072,7 @@ const BookingForm = () => {
                         {step}
                       </div>
                       <span
-                        className={`text-xs text-center whitespace-nowrap ${
+                        className={`text-[10px] sm:text-xs text-center leading-tight max-w-[70px] sm:max-w-none ${
                           currentStep === step
                             ? "font-semibold"
                             : "text-gray-600"
@@ -1095,7 +1097,7 @@ const BookingForm = () => {
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
               {/* Step 1: Room Selection and Dates */}
               {currentStep === 1 && (
                 <>
@@ -1603,7 +1605,7 @@ const BookingForm = () => {
           onClick={toggleChatbot}
           className="md:hidden fixed bottom-6 right-6 text-white rounded-full p-4 shadow-2xl z-50 transform transition-all duration-300 hover:scale-110 active:scale-95"
           style={{
-            background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
+            backgroundColor: 'var(--brand-primary)',
           }}
           aria-label="Toggle chatbot"
         >
@@ -1624,7 +1626,7 @@ const BookingForm = () => {
 
         {/* Mobile Chatbot Modal */}
         {isChatbotOpen && (
-          <div className="md:hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
+          <div className="md:hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
             {/* Backdrop */}
             <div
               className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -1632,17 +1634,17 @@ const BookingForm = () => {
             />
 
             {/* Chatbot Modal */}
-            <div className="relative bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-lg max-h-[85vh] sm:max-h-[600px] flex flex-col animate-slide-up">
+            <div className="relative bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-lg h-[75vh] sm:max-h-[600px] flex flex-col animate-slide-up">
               {/* Header */}
               <div
-                className="p-4 text-white rounded-t-3xl sm:rounded-t-2xl flex items-center justify-between"
+                className="p-4 text-white rounded-t-3xl sm:rounded-t-2xl flex items-center justify-between flex-shrink-0"
                 style={{
-                  background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
+                  backgroundColor: 'var(--brand-primary)',
                 }}
               >
-                <div className="flex items-center">
+                <div className="flex items-center min-w-0 flex-1">
                   <svg
-                    className="w-6 h-6 mr-2"
+                    className="w-6 h-6 mr-2 flex-shrink-0"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -1654,18 +1656,18 @@ const BookingForm = () => {
                       d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
                     />
                   </svg>
-                  <div>
-                    <h3 className="text-lg font-bold">Chat with us</h3>
-                    <p className="text-xs opacity-90">We're here to help</p>
+                  <div className="min-w-0">
+                    <h3 className="text-base font-bold truncate">Chat with us</h3>
+                    <p className="text-xs opacity-90 truncate">We're here to help</p>
                   </div>
                 </div>
                 <button
                   onClick={toggleChatbot}
-                  className="text-white hover:bg-white/20 rounded-full p-2 transition-all"
+                  className="text-white hover:bg-white/20 rounded-full p-2 transition-all flex-shrink-0 ml-2"
                   aria-label="Close chatbot"
                 >
                   <svg
-                    className="w-6 h-6"
+                    className="w-5 h-5"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -1681,7 +1683,7 @@ const BookingForm = () => {
               </div>
 
               {/* Chat Messages */}
-              <div className="flex-1 overflow-y-auto p-4 bg-gray-50 space-y-3">
+              <div className="flex-1 overflow-y-auto p-4 bg-gray-50 space-y-3 min-h-0">
                 {chatMessages.map((msg, index) => (
                   <div
                     key={index}
@@ -1698,7 +1700,7 @@ const BookingForm = () => {
                       style={
                         msg.type === "user"
                           ? {
-                              background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
+                              backgroundColor: 'var(--brand-primary)',
                             }
                           : {}
                       }
@@ -1710,7 +1712,7 @@ const BookingForm = () => {
               </div>
 
               {/* Chat Input */}
-              <div className="p-4 bg-white border-t border-gray-200 rounded-b-3xl sm:rounded-b-2xl">
+              <div className="p-4 bg-white border-t border-gray-200 rounded-b-3xl sm:rounded-b-2xl flex-shrink-0">
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -1718,15 +1720,17 @@ const BookingForm = () => {
                     onChange={(e) => setChatInput(e.target.value)}
                     onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
                     placeholder="Type your message..."
-                    className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-opacity-50"
+                    className="flex-1 px-4 py-2.5 border-2 border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-opacity-50 text-sm"
                     style={{ "--tw-ring-color": primaryColor }}
                   />
                   <button
                     onClick={handleSendMessage}
-                    className="text-white rounded-full p-2 hover:opacity-90 transition-all"
+                    className="text-white cursor-pointer rounded-full p-2.5 transition-all flex-shrink-0"
                     style={{
-                      background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
+                      backgroundColor: 'var(--brand-primary)',
                     }}
+                    onMouseEnter={(e) => e.target.style.backgroundColor = 'color-mix(in srgb, var(--brand-primary) 80%, black)'}
+                    onMouseLeave={(e) => e.target.style.backgroundColor = 'var(--brand-primary)'}
                     aria-label="Send message"
                   >
                     <svg
@@ -1739,7 +1743,7 @@ const BookingForm = () => {
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         strokeWidth={2}
-                        d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                        d="M14 5l7 7m0 0l-7 7m7-7H3"
                       />
                     </svg>
                   </button>
