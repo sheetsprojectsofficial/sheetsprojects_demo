@@ -20,6 +20,7 @@ import imageRoutes from './image.js';
 import bookingRoutes from './booking.js';
 import paymentRoutes from './payment.js';
 import cartRoutes from './cart.js';
+import chatbotRoutes from './chatbot.js';
 
 const router = express.Router();
 
@@ -90,5 +91,8 @@ router.use('/payment', paymentRoutes);
 
 // Mount cart routes
 router.use('/cart', cartRoutes);
+
+// Mount chatbot routes
+router.use('/chatbot', chatbotRoutes);
 
 export default router; 

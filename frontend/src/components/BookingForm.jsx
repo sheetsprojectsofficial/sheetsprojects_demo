@@ -45,14 +45,23 @@ const BookingForm = () => {
 
   // Chatbot states
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
-  const [chatMessages, setChatMessages] = useState([
-    {
-      type: "bot",
-      message: "Hello! Welcome to " + (settings?.["Hotel Name"]?.value || "our hotel") + ". How can I assist you with your booking today?",
-      timestamp: new Date(),
-    },
-  ]);
-  const [chatInput, setChatInput] = useState("");
+  const [qaData, setQaData] = useState([]);
+  const [loadingQA, setLoadingQA] = useState(false);
+  const [selectedQuestion, setSelectedQuestion] = useState(null);
+  const [showAnswer, setShowAnswer] = useState(false);
+  const [chatbotError, setChatbotError] = useState(null);
+
+  // New chat-style states
+  const [chatMessages, setChatMessages] = useState([]);
+  const [isTyping, setIsTyping] = useState(false);
+  const [currentTypingText, setCurrentTypingText] = useState("");
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  const [currentQAIndex, setCurrentQAIndex] = useState(0);
+  const [hasFinished, setHasFinished] = useState(false);
+  const chatEndRef = React.useRef(null);
+  const chatContainerRef = React.useRef(null);
+  const timersRef = React.useRef([]);
 
   // Get primary and secondary colors from settings
   const primaryColor = settings?.primaryColor?.value || "#6366f1";
@@ -62,6 +71,13 @@ const BookingForm = () => {
   useEffect(() => {
     fetchRooms();
   }, []);
+
+  // Fetch Q&A data when settings are loaded (for desktop chatbot which is always visible)
+  useEffect(() => {
+    if (settings && qaData.length === 0 && !loadingQA) {
+      fetchQAData();
+    }
+  }, [settings]);
 
   const fetchRooms = async () => {
     try {
@@ -609,59 +625,305 @@ const BookingForm = () => {
     )}`;
   };
 
-  // Chatbot handlers
-  const handleSendMessage = () => {
-    if (!chatInput.trim()) return;
+  // Fetch Q&A data from the sheet
+  const fetchQAData = async () => {
+    try {
+      setLoadingQA(true);
+      setChatbotError(null);
 
-    // Add user message
-    const userMessage = {
-      type: "user",
-      message: chatInput,
-      timestamp: new Date(),
-    };
+      console.log("Settings object:", settings);
+      const hotelInfoSheetUrl = settings?.["Hotel Informations Sheet Url"]?.value;
+      console.log("Hotel Info Sheet URL:", hotelInfoSheetUrl);
 
-    setChatMessages((prev) => [...prev, userMessage]);
+      if (!hotelInfoSheetUrl) {
+        console.error("Hotel Informations Sheet Url not found in settings");
+        setChatbotError("Hotel information not configured. Please add 'Hotel Informations Sheet Url' in settings.");
+        setLoadingQA(false);
+        return;
+      }
 
-    // Simulate bot response
-    setTimeout(() => {
-      const botResponse = {
-        type: "bot",
-        message: getBotResponse(chatInput.toLowerCase()),
-        timestamp: new Date(),
-      };
-      setChatMessages((prev) => [...prev, botResponse]);
-    }, 500);
+      console.log("Making API call to fetch Q&A...");
+      const response = await axios.post(`${API_BASE_URL}/chatbot/hotel-qa`, {
+        hotelInfoSheetUrl: hotelInfoSheetUrl
+      });
 
-    setChatInput("");
-  };
+      console.log("API Response:", response.data);
 
-  const getBotResponse = (input) => {
-    if (input.includes("price") || input.includes("cost") || input.includes("rate")) {
-      return "Our rooms range from ₹1300 to ₹3000 per night. Room 1 is ₹1300/night for 2 guests, Room 2 is ₹2000/night for 3 guests, and Room 3 is ₹3000/night for 4 guests. Would you like to book a room?";
-    } else if (input.includes("available") || input.includes("vacancy")) {
-      return "To check availability, please select your check-in and check-out dates along with your preferred room in the booking form. Our system will show you real-time availability.";
-    } else if (input.includes("check-in") || input.includes("check in")) {
-      return "Our standard check-in time is 11:00 AM. You can select your check-in date in the booking form on the right.";
-    } else if (input.includes("check-out") || input.includes("check out")) {
-      return "Our standard check-out time is 11:30 AM. Please ensure you complete checkout before this time to avoid additional charges.";
-    } else if (input.includes("amenities") || input.includes("facilities")) {
-      return "Our rooms come with modern amenities including WiFi, TV, air conditioning, and room service. Each room type offers different capacities and features.";
-    } else if (input.includes("cancel") || input.includes("refund")) {
-      return "For cancellation and refund policies, please contact our support team. They will be happy to assist you with your booking modifications.";
-    } else if (input.includes("payment") || input.includes("pay")) {
-      return "We accept secure online payments through Razorpay. You can pay after completing the booking form. All major payment methods are accepted.";
-    } else if (input.includes("help") || input.includes("assist")) {
-      return "I'm here to help! You can ask me about room prices, availability, check-in/check-out times, amenities, or payment methods. What would you like to know?";
-    } else {
-      return "Thank you for your message! For specific queries or immediate assistance, please contact our support team. You can also proceed with your booking using the form on the right.";
+      if (response.data.success) {
+        setQaData(response.data.data);
+        console.log("Q&A data loaded:", response.data.data);
+      } else {
+        setChatbotError(response.data.message || "Failed to load Q&A data");
+      }
+    } catch (error) {
+      console.error("Error fetching Q&A:", error);
+      console.error("Error details:", error.response?.data);
+      setChatbotError(error.response?.data?.message || "Failed to load hotel information");
+    } finally {
+      setLoadingQA(false);
     }
   };
 
+  // Auto-scroll to bottom of chat (only within chatbot container)
+  const scrollToBottom = () => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  };
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      clearAllTimers();
+    };
+  }, []);
+
+  // Show welcome message when Q&A data is loaded
+  useEffect(() => {
+    if (qaData.length > 0 && !showWelcome && chatMessages.length === 0) {
+      setShowWelcome(true);
+      setTimeout(() => {
+        const welcomeMsg = {
+          id: Date.now(),
+          type: 'bot',
+          text: `Welcome to ${hotelName}! 👋\n\nI'm your hotel guide. I'll show you some helpful information about our hotel. Sit back and enjoy!`,
+          timestamp: new Date()
+        };
+        setChatMessages([welcomeMsg]);
+        setTimeout(scrollToBottom, 100);
+
+        // Start auto-play after welcome message
+        setTimeout(() => {
+          if (qaData.length > 0 && isAutoPlaying) {
+            playNextQA(0);
+          }
+        }, 3000);
+      }, 500);
+    }
+  }, [qaData, showWelcome, hotelName]);
+
+  // Clear all timers helper
+  const clearAllTimers = () => {
+    timersRef.current.forEach(timer => clearTimeout(timer));
+    timersRef.current = [];
+    setIsTyping(false);
+    setCurrentTypingText("");
+  };
+
+  // Auto-play Q&A carousel
+  const playNextQA = (index, forcePlay = false) => {
+    if ((!isAutoPlaying && !forcePlay) || qaData.length === 0) return;
+
+    const qa = qaData[index];
+    if (!qa) {
+      // All questions finished - stop autoplay
+      setIsAutoPlaying(false);
+      setHasFinished(true);
+      setCurrentQAIndex(0);
+      return;
+    }
+
+    // Add user message (question)
+    const userMsg = {
+      id: Date.now(),
+      type: 'user',
+      text: qa.question,
+      timestamp: new Date()
+    };
+
+    setChatMessages(prev => [...prev, userMsg]);
+    setCurrentQAIndex(index);
+
+    const scrollTimer1 = setTimeout(scrollToBottom, 100);
+    timersRef.current.push(scrollTimer1);
+
+    // Show typing indicator
+    const typingTimer = setTimeout(() => {
+      setIsTyping(true);
+
+      // After typing delay, add bot answer with typewriter effect
+      const answerTimer = setTimeout(() => {
+        const botMsg = {
+          id: Date.now() + 1,
+          type: 'bot',
+          text: '',
+          timestamp: new Date()
+        };
+        setChatMessages(prev => [...prev, botMsg]);
+        setCurrentTypingText(qa.answer);
+
+        const scrollTimer2 = setTimeout(scrollToBottom, 100);
+        timersRef.current.push(scrollTimer2);
+
+        // Calculate answer length to determine next Q&A delay
+        const answerDelay = qa.answer.length * 20 + 3000; // 20ms per char + 3s pause
+
+        // Play next Q&A
+        const nextTimer = setTimeout(() => {
+          playNextQA(index + 1, forcePlay);
+        }, answerDelay);
+        timersRef.current.push(nextTimer);
+      }, 1200 + Math.random() * 800);
+      timersRef.current.push(answerTimer);
+    }, 300);
+    timersRef.current.push(typingTimer);
+  };
+
+  // Pause/Resume/Restart auto-play
+  const toggleAutoPlay = () => {
+    if (isAutoPlaying) {
+      // Pause - clear all running timers
+      setIsAutoPlaying(false);
+      clearAllTimers();
+    } else if (hasFinished) {
+      // Restart from beginning
+      setIsAutoPlaying(true);
+      setHasFinished(false);
+      setChatMessages([]);
+      setCurrentQAIndex(0);
+      setShowWelcome(false);
+
+      // Show welcome message again and start
+      setTimeout(() => {
+        const welcomeMsg = {
+          id: Date.now(),
+          type: 'bot',
+          text: `Welcome to ${hotelName}! 👋\n\nI'm your hotel guide. I'll show you some helpful information about our hotel. Sit back and enjoy!`,
+          timestamp: new Date()
+        };
+        setChatMessages([welcomeMsg]);
+        setTimeout(scrollToBottom, 100);
+
+        // Start auto-play
+        setTimeout(() => {
+          playNextQA(0, true);
+        }, 3000);
+      }, 300);
+    } else {
+      // Resume - continue from current index
+      setIsAutoPlaying(true);
+      // Wait a moment then resume with forcePlay flag
+      setTimeout(() => {
+        playNextQA(currentQAIndex, true);
+      }, 500);
+    }
+  };
+
+  // Typewriter effect for bot messages
+  useEffect(() => {
+    if (currentTypingText) {
+      const lastMessage = chatMessages[chatMessages.length - 1];
+      if (lastMessage && lastMessage.type === 'bot' && lastMessage.text !== currentTypingText) {
+        const currentLength = lastMessage.text.length;
+        const targetLength = currentTypingText.length;
+
+        if (currentLength < targetLength) {
+          const timeout = setTimeout(() => {
+            setChatMessages(prev => {
+              const newMessages = [...prev];
+              newMessages[newMessages.length - 1] = {
+                ...lastMessage,
+                text: currentTypingText.substring(0, currentLength + 1)
+              };
+              return newMessages;
+            });
+            scrollToBottom();
+          }, 20); // Speed of typing
+          return () => clearTimeout(timeout);
+        } else {
+          setCurrentTypingText("");
+          setIsTyping(false);
+        }
+      }
+    }
+  }, [currentTypingText, chatMessages]);
+
+  // Chatbot handlers - New chat-style
+  const handleQuestionClick = async (qa) => {
+    // Add user message
+    const userMsg = {
+      id: Date.now(),
+      type: 'user',
+      text: qa.question,
+      timestamp: new Date()
+    };
+
+    setChatMessages(prev => [...prev, userMsg]);
+    setTimeout(scrollToBottom, 100);
+
+    // Show typing indicator
+    setTimeout(() => {
+      setIsTyping(true);
+
+      // After typing delay, add bot answer with typewriter effect
+      setTimeout(() => {
+        const botMsg = {
+          id: Date.now() + 1,
+          type: 'bot',
+          text: '',
+          timestamp: new Date()
+        };
+        setChatMessages(prev => [...prev, botMsg]);
+        setCurrentTypingText(qa.answer);
+        setTimeout(scrollToBottom, 100);
+      }, 1000 + Math.random() * 500); // Random delay for natural feel
+    }, 300);
+  };
+
+  const handleBackToQuestions = () => {
+    setSelectedQuestion(null);
+    setShowAnswer(false);
+  };
+
   const toggleChatbot = () => {
-    setIsChatbotOpen(!isChatbotOpen);
+    const newState = !isChatbotOpen;
+    setIsChatbotOpen(newState);
+
+    // Fetch Q&A data when opening chatbot for the first time
+    if (newState && qaData.length === 0 && !loadingQA && settings) {
+      fetchQAData();
+    }
+
+    // Reset states when closing
+    if (!newState) {
+      setSelectedQuestion(null);
+      setShowAnswer(false);
+    }
   };
 
   return (
+    <>
+      <style>{`
+        @keyframes fade-in {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes slide-up {
+          from {
+            transform: translateY(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateY(0);
+            opacity: 1;
+          }
+        }
+
+        .animate-fade-in {
+          animation: fade-in 0.4s ease-out forwards;
+        }
+
+        .animate-slide-up {
+          animation: slide-up 0.3s ease-out forwards;
+        }
+      `}</style>
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-6 sm:py-8 lg:py-12 px-3 sm:px-4 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-6 sm:mb-8">
@@ -928,9 +1190,9 @@ const BookingForm = () => {
             )}
 
             {/* Chatbot UI - Hidden on mobile, visible on tablet and up */}
-            <div className="hidden md:block bg-white rounded-2xl shadow-xl overflow-hidden">
+            <div className="hidden md:flex flex-col bg-white rounded-2xl shadow-xl overflow-hidden h-[600px]">
               <div
-                className="p-4 text-white"
+                className="p-4 text-white flex-shrink-0"
                 style={{
                   backgroundColor: 'var(--brand-primary)',
                 }}
@@ -946,83 +1208,149 @@ const BookingForm = () => {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
                     />
                   </svg>
-                  Chat with us
+                  Hotel Guide Bot
                 </h3>
                 <p className="text-sm opacity-90 mt-1">
-                  Ask us anything about your stay
+                  Ask me anything about the hotel
                 </p>
               </div>
 
-              {/* Chat Messages */}
-              <div className="h-80 overflow-y-auto p-4 bg-gray-50 space-y-3">
-                {chatMessages.map((msg, index) => (
-                  <div
-                    key={index}
-                    className={`flex ${
-                      msg.type === "user" ? "justify-end" : "justify-start"
-                    }`}
-                  >
-                    <div
-                      className={`max-w-[80%] rounded-2xl px-4 py-2 ${
-                        msg.type === "user"
-                          ? "text-white rounded-br-none"
-                          : "bg-white text-gray-800 rounded-bl-none shadow-sm"
-                      }`}
-                      style={
-                        msg.type === "user"
-                          ? {
-                              backgroundColor: 'var(--brand-primary)',
-                            }
-                          : {}
-                      }
-                    >
-                      <p className="text-sm leading-relaxed">{msg.message}</p>
+              {/* Chat Messages Area */}
+              <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 bg-gradient-to-b from-gray-50 to-gray-100 space-y-4" style={{ minHeight: 0 }}>
+                {loadingQA ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4" style={{ borderColor: 'var(--brand-primary)' }}></div>
+                      <p className="text-gray-600">Loading hotel information...</p>
                     </div>
                   </div>
-                ))}
+                ) : chatbotError ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <svg className="w-12 h-12 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <p className="text-red-600 font-medium">{chatbotError}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {/* Chat Messages */}
+                    {chatMessages.map((message) => (
+                      <div
+                        key={message.id}
+                        className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in`}
+                      >
+                        <div className={`flex items-end gap-2 max-w-[80%] ${message.type === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                          {/* Avatar */}
+                          <div
+                            className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${message.type === 'user' ? 'bg-gray-400' : ''}`}
+                            style={message.type === 'bot' ? { backgroundColor: 'var(--brand-primary)' } : {}}
+                          >
+                            {message.type === 'user' ? (
+                              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                              </svg>
+                            ) : (
+                              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                              </svg>
+                            )}
+                          </div>
+
+                          {/* Message Bubble */}
+                          <div
+                            className={`px-4 py-3 rounded-2xl shadow-md ${
+                              message.type === 'user'
+                                ? 'text-white rounded-br-none'
+                                : 'bg-white text-gray-800 rounded-bl-none'
+                            }`}
+                            style={message.type === 'user' ? { backgroundColor: 'var(--brand-primary)' } : {}}
+                          >
+                            <p className="text-sm leading-relaxed whitespace-pre-line">{message.text}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Typing Indicator */}
+                    {isTyping && (
+                      <div className="flex justify-start animate-fade-in">
+                        <div className="flex items-end gap-2">
+                          <div
+                            className="w-8 h-8 rounded-full flex items-center justify-center"
+                            style={{ backgroundColor: 'var(--brand-primary)' }}
+                          >
+                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                            </svg>
+                          </div>
+                          <div className="bg-white px-4 py-3 rounded-2xl rounded-bl-none shadow-md">
+                            <div className="flex gap-1">
+                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div ref={chatEndRef} />
+                  </>
+                )}
               </div>
 
-              {/* Chat Input */}
-              <div className="p-4 bg-white border-t border-gray-200">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-                    placeholder="Type your message..."
-                    className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-opacity-50"
-                    style={{ "--tw-ring-color": primaryColor }}
-                  />
-                  <button
-                    onClick={handleSendMessage}
-                    className="text-white cursor-pointer rounded-full p-2 transition-all"
-                    style={{
-                      backgroundColor: 'var(--brand-primary)',
-                    }}
-                    onMouseEnter={(e) => e.target.style.backgroundColor = 'color-mix(in srgb, var(--brand-primary) 80%, black)'}
-                    onMouseLeave={(e) => e.target.style.backgroundColor = 'var(--brand-primary)'}
-                    aria-label="Send message"
-                  >
-                    <svg
-                      className="w-6 h-6"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
+              {/* Auto-Play Controls */}
+              {!loadingQA && !chatbotError && qaData.length > 0 && (
+                <div className="p-4 bg-white border-t border-gray-200 flex-shrink-0">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
+                        <div className={`w-2 h-2 rounded-full ${isAutoPlaying ? 'bg-green-500 animate-pulse' : hasFinished ? 'bg-blue-500' : 'bg-gray-400'}`}></div>
+                        <span className="text-xs text-gray-600 font-medium">
+                          {isAutoPlaying ? 'Auto-playing' : hasFinished ? 'Finished' : 'Paused'}
+                        </span>
+                      </div>
+                      <span className="text-xs text-gray-400">•</span>
+                      <span className="text-xs text-gray-500">
+                        {currentQAIndex + 1} / {qaData.length}
+                      </span>
+                    </div>
+                    <button
+                      onClick={toggleAutoPlay}
+                      className="flex items-center gap-2 px-4 py-2 rounded-full text-white text-sm font-medium transition-all duration-200 hover:shadow-lg"
+                      style={{ backgroundColor: 'var(--brand-primary)' }}
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M14 5l7 7m0 0l-7 7m7-7H3"
-                      />
-                    </svg>
-                  </button>
+                      {isAutoPlaying ? (
+                        <>
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
+                          </svg>
+                          Pause
+                        </>
+                      ) : hasFinished ? (
+                        <>
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 5V2L8 6l4 4V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
+                          </svg>
+                          Restart
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z"/>
+                          </svg>
+                          Play
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
 
@@ -1653,12 +1981,12 @@ const BookingForm = () => {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                      d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                     />
                   </svg>
                   <div className="min-w-0">
-                    <h3 className="text-base font-bold truncate">Chat with us</h3>
-                    <p className="text-xs opacity-90 truncate">We're here to help</p>
+                    <h3 className="text-base font-bold truncate">Hotel Guide Bot</h3>
+                    <p className="text-xs opacity-90 truncate">Ask me anything</p>
                   </div>
                 </div>
                 <button
@@ -1682,73 +2010,139 @@ const BookingForm = () => {
                 </button>
               </div>
 
-              {/* Chat Messages */}
-              <div className="flex-1 overflow-y-auto p-4 bg-gray-50 space-y-3 min-h-0">
-                {chatMessages.map((msg, index) => (
-                  <div
-                    key={index}
-                    className={`flex ${
-                      msg.type === "user" ? "justify-end" : "justify-start"
-                    }`}
-                  >
-                    <div
-                      className={`max-w-[80%] rounded-2xl px-4 py-2 ${
-                        msg.type === "user"
-                          ? "text-white rounded-br-none"
-                          : "bg-white text-gray-800 rounded-bl-none shadow-sm"
-                      }`}
-                      style={
-                        msg.type === "user"
-                          ? {
-                              backgroundColor: 'var(--brand-primary)',
-                            }
-                          : {}
-                      }
-                    >
-                      <p className="text-sm leading-relaxed">{msg.message}</p>
+              {/* Chat Messages Area */}
+              <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 bg-gradient-to-b from-gray-50 to-gray-100 space-y-3 min-h-0">
+                {loadingQA ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4" style={{ borderColor: 'var(--brand-primary)' }}></div>
+                      <p className="text-gray-600">Loading hotel information...</p>
                     </div>
                   </div>
-                ))}
+                ) : chatbotError ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <svg className="w-12 h-12 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <p className="text-red-600 font-medium text-sm px-4">{chatbotError}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {/* Chat Messages */}
+                    {chatMessages.map((message) => (
+                      <div
+                        key={message.id}
+                        className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in`}
+                      >
+                        <div className={`flex items-end gap-2 max-w-[85%] ${message.type === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                          {/* Avatar */}
+                          <div
+                            className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${message.type === 'user' ? 'bg-gray-400' : ''}`}
+                            style={message.type === 'bot' ? { backgroundColor: 'var(--brand-primary)' } : {}}
+                          >
+                            {message.type === 'user' ? (
+                              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                              </svg>
+                            ) : (
+                              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                              </svg>
+                            )}
+                          </div>
+
+                          {/* Message Bubble */}
+                          <div
+                            className={`px-3 py-2.5 rounded-2xl shadow-md ${
+                              message.type === 'user'
+                                ? 'text-white rounded-br-none'
+                                : 'bg-white text-gray-800 rounded-bl-none'
+                            }`}
+                            style={message.type === 'user' ? { backgroundColor: 'var(--brand-primary)' } : {}}
+                          >
+                            <p className="text-xs sm:text-sm leading-relaxed whitespace-pre-line">{message.text}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Typing Indicator */}
+                    {isTyping && (
+                      <div className="flex justify-start animate-fade-in">
+                        <div className="flex items-end gap-2">
+                          <div
+                            className="w-7 h-7 rounded-full flex items-center justify-center"
+                            style={{ backgroundColor: 'var(--brand-primary)' }}
+                          >
+                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                            </svg>
+                          </div>
+                          <div className="bg-white px-4 py-3 rounded-2xl rounded-bl-none shadow-md">
+                            <div className="flex gap-1">
+                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div ref={chatEndRef} />
+                  </>
+                )}
               </div>
 
-              {/* Chat Input */}
-              <div className="p-4 bg-white border-t border-gray-200 rounded-b-3xl sm:rounded-b-2xl flex-shrink-0">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-                    placeholder="Type your message..."
-                    className="flex-1 px-4 py-2.5 border-2 border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-opacity-50 text-sm"
-                    style={{ "--tw-ring-color": primaryColor }}
-                  />
-                  <button
-                    onClick={handleSendMessage}
-                    className="text-white cursor-pointer rounded-full p-2.5 transition-all flex-shrink-0"
-                    style={{
-                      backgroundColor: 'var(--brand-primary)',
-                    }}
-                    onMouseEnter={(e) => e.target.style.backgroundColor = 'color-mix(in srgb, var(--brand-primary) 80%, black)'}
-                    onMouseLeave={(e) => e.target.style.backgroundColor = 'var(--brand-primary)'}
-                    aria-label="Send message"
-                  >
-                    <svg
-                      className="w-6 h-6"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
+              {/* Auto-Play Controls */}
+              {!loadingQA && !chatbotError && qaData.length > 0 && (
+                <div className="p-3 bg-white border-t border-gray-200 flex-shrink-0">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
+                        <div className={`w-2 h-2 rounded-full ${isAutoPlaying ? 'bg-green-500 animate-pulse' : hasFinished ? 'bg-blue-500' : 'bg-gray-400'}`}></div>
+                        <span className="text-xs text-gray-600 font-medium">
+                          {isAutoPlaying ? 'Auto-playing' : hasFinished ? 'Finished' : 'Paused'}
+                        </span>
+                      </div>
+                      <span className="text-xs text-gray-400">•</span>
+                      <span className="text-xs text-gray-500">
+                        {currentQAIndex + 1} / {qaData.length}
+                      </span>
+                    </div>
+                    <button
+                      onClick={toggleAutoPlay}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white text-xs font-medium transition-all duration-200 active:scale-95"
+                      style={{ backgroundColor: 'var(--brand-primary)' }}
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M14 5l7 7m0 0l-7 7m7-7H3"
-                      />
-                    </svg>
-                  </button>
+                      {isAutoPlaying ? (
+                        <>
+                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
+                          </svg>
+                          Pause
+                        </>
+                      ) : hasFinished ? (
+                        <>
+                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 5V2L8 6l4 4V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
+                          </svg>
+                          Restart
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z"/>
+                          </svg>
+                          Play
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         )}
@@ -1756,6 +2150,7 @@ const BookingForm = () => {
     </div>
     </div>
     </div>
+    </>
   );
 };
 
