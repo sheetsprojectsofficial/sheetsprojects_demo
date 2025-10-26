@@ -43,6 +43,17 @@ const BookingForm = () => {
   // Slideshow states
   const [currentSlide, setCurrentSlide] = useState(0);
 
+  // Chatbot states
+  const [isChatbotOpen, setIsChatbotOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState([
+    {
+      type: "bot",
+      message: "Hello! Welcome to " + (settings?.["Hotel Name"]?.value || "our hotel") + ". How can I assist you with your booking today?",
+      timestamp: new Date(),
+    },
+  ]);
+  const [chatInput, setChatInput] = useState("");
+
   // Get primary and secondary colors from settings
   const primaryColor = settings?.primaryColor?.value || "#6366f1";
   const secondaryColor = settings?.secondaryColor?.value || "#8b5cf6";
@@ -598,6 +609,58 @@ const BookingForm = () => {
     )}`;
   };
 
+  // Chatbot handlers
+  const handleSendMessage = () => {
+    if (!chatInput.trim()) return;
+
+    // Add user message
+    const userMessage = {
+      type: "user",
+      message: chatInput,
+      timestamp: new Date(),
+    };
+
+    setChatMessages((prev) => [...prev, userMessage]);
+
+    // Simulate bot response
+    setTimeout(() => {
+      const botResponse = {
+        type: "bot",
+        message: getBotResponse(chatInput.toLowerCase()),
+        timestamp: new Date(),
+      };
+      setChatMessages((prev) => [...prev, botResponse]);
+    }, 500);
+
+    setChatInput("");
+  };
+
+  const getBotResponse = (input) => {
+    if (input.includes("price") || input.includes("cost") || input.includes("rate")) {
+      return "Our rooms range from ₹1300 to ₹3000 per night. Room 1 is ₹1300/night for 2 guests, Room 2 is ₹2000/night for 3 guests, and Room 3 is ₹3000/night for 4 guests. Would you like to book a room?";
+    } else if (input.includes("available") || input.includes("vacancy")) {
+      return "To check availability, please select your check-in and check-out dates along with your preferred room in the booking form. Our system will show you real-time availability.";
+    } else if (input.includes("check-in") || input.includes("check in")) {
+      return "Our standard check-in time is 11:00 AM. You can select your check-in date in the booking form on the right.";
+    } else if (input.includes("check-out") || input.includes("check out")) {
+      return "Our standard check-out time is 11:30 AM. Please ensure you complete checkout before this time to avoid additional charges.";
+    } else if (input.includes("amenities") || input.includes("facilities")) {
+      return "Our rooms come with modern amenities including WiFi, TV, air conditioning, and room service. Each room type offers different capacities and features.";
+    } else if (input.includes("cancel") || input.includes("refund")) {
+      return "For cancellation and refund policies, please contact our support team. They will be happy to assist you with your booking modifications.";
+    } else if (input.includes("payment") || input.includes("pay")) {
+      return "We accept secure online payments through Razorpay. You can pay after completing the booking form. All major payment methods are accepted.";
+    } else if (input.includes("help") || input.includes("assist")) {
+      return "I'm here to help! You can ask me about room prices, availability, check-in/check-out times, amenities, or payment methods. What would you like to know?";
+    } else {
+      return "Thank you for your message! For specific queries or immediate assistance, please contact our support team. You can also proceed with your booking using the form on the right.";
+    }
+  };
+
+  const toggleChatbot = () => {
+    setIsChatbotOpen(!isChatbotOpen);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
@@ -610,16 +673,8 @@ const BookingForm = () => {
 
         {/* Two Column Grid Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Left Column - Hotel Details */}
+          {/* Left Column - Slideshow & Chatbot */}
           <div className="space-y-6">
-            {/* Hotel Name */}
-            <div className="bg-white rounded-2xl shadow-xl p-8">
-              <h2 className="text-3xl font-bold text-gray-900 mb-2 text-center">
-                {hotelName}
-              </h2>
-              <p className="text-gray-600 font-semibold">{hotelDescription}</p>
-            </div>
-
             {/* Combined Hotel & Room Images Slideshow */}
             {(hotelImage ||
               rooms.filter((room) => room.imageUrl).length > 0) && (
@@ -628,7 +683,7 @@ const BookingForm = () => {
                   {/* Hotel Image - First Slide */}
                   {hotelImage && (
                     <div
-                      className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
+                      className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
                         currentSlide === 0
                           ? "opacity-100"
                           : "opacity-0 pointer-events-none"
@@ -698,7 +753,7 @@ const BookingForm = () => {
                       return (
                         <div
                           key={room.id}
-                          className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
+                          className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
                             slideIndex === currentSlide
                               ? "opacity-100"
                               : "opacity-0 pointer-events-none"
@@ -872,38 +927,111 @@ const BookingForm = () => {
               </div>
             )}
 
-            {/* Information Box */}
-            <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-blue-900 mb-2">
-                Room Information
-              </h3>
-              <ul className="space-y-2 text-sm text-blue-800">
-                <li>
-                  • <strong>Room 1 - Standard Room:</strong> Accommodates up to
-                  2 adults
-                </li>
-                <li>
-                  • <strong>Room 2 - Deluxe Room:</strong> Accommodates up to 3
-                  adults
-                </li>
-                <li>
-                  • <strong>Room 3 - Suite Room:</strong> Accommodates up to 4
-                  adults
-                </li>
-                <li>
-                  • <strong>Check-in Time:</strong> 11:00 AM
-                </li>
-                <li>
-                  • <strong>Check-out Time:</strong> 11:30 AM
-                </li>
-                <li>• All fields including adults details are mandatory</li>
-                <li>• Room availability is checked in real-time</li>
-              </ul>
+            {/* Chatbot UI - Hidden on mobile, visible on tablet and up */}
+            <div className="hidden md:block bg-white rounded-2xl shadow-xl overflow-hidden">
+              <div
+                className="p-4 text-white"
+                style={{
+                  background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
+                }}
+              >
+                <h3 className="text-xl font-bold flex items-center">
+                  <svg
+                    className="w-6 h-6 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                    />
+                  </svg>
+                  Chat with us
+                </h3>
+                <p className="text-sm opacity-90 mt-1">
+                  Ask us anything about your stay
+                </p>
+              </div>
+
+              {/* Chat Messages */}
+              <div className="h-80 overflow-y-auto p-4 bg-gray-50 space-y-3">
+                {chatMessages.map((msg, index) => (
+                  <div
+                    key={index}
+                    className={`flex ${
+                      msg.type === "user" ? "justify-end" : "justify-start"
+                    }`}
+                  >
+                    <div
+                      className={`max-w-[80%] rounded-2xl px-4 py-2 ${
+                        msg.type === "user"
+                          ? "text-white rounded-br-none"
+                          : "bg-white text-gray-800 rounded-bl-none shadow-sm"
+                      }`}
+                      style={
+                        msg.type === "user"
+                          ? {
+                              background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
+                            }
+                          : {}
+                      }
+                    >
+                      <p className="text-sm leading-relaxed">{msg.message}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Chat Input */}
+              <div className="p-4 bg-white border-t border-gray-200">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+                    placeholder="Type your message..."
+                    className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-opacity-50"
+                    style={{ "--tw-ring-color": primaryColor }}
+                  />
+                  <button
+                    onClick={handleSendMessage}
+                    className="text-white rounded-full p-2 hover:opacity-90 transition-all"
+                    style={{
+                      background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
+                    }}
+                    aria-label="Send message"
+                  >
+                    <svg
+                      className="w-6 h-6"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              </div>
             </div>
+
+
           </div>
 
-          {/* Right Column - Booking Form */}
-          <div className="bg-white rounded-2xl shadow-xl p-8 h-fit">
+
+          <div className="space-y-6">
+
+
+            {/* Booking Form */}
+            <div className="bg-white rounded-2xl shadow-xl p-8 h-fit">
             {/* Step Indicator */}
             <div className="mb-8">
               <div className="relative px-8">
@@ -1465,9 +1593,164 @@ const BookingForm = () => {
                 </>
               )}
             </form>
+            </div>
+
+
+
+
+        {/* Floating Chat Button - Mobile Only */}
+        <button
+          onClick={toggleChatbot}
+          className="md:hidden fixed bottom-6 right-6 text-white rounded-full p-4 shadow-2xl z-50 transform transition-all duration-300 hover:scale-110 active:scale-95"
+          style={{
+            background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
+          }}
+          aria-label="Toggle chatbot"
+        >
+          <svg
+            className="w-7 h-7"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+            />
+          </svg>
+        </button>
+
+        {/* Mobile Chatbot Modal */}
+        {isChatbotOpen && (
+          <div className="md:hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
+            {/* Backdrop */}
+            <div
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+              onClick={toggleChatbot}
+            />
+
+            {/* Chatbot Modal */}
+            <div className="relative bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-lg max-h-[85vh] sm:max-h-[600px] flex flex-col animate-slide-up">
+              {/* Header */}
+              <div
+                className="p-4 text-white rounded-t-3xl sm:rounded-t-2xl flex items-center justify-between"
+                style={{
+                  background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
+                }}
+              >
+                <div className="flex items-center">
+                  <svg
+                    className="w-6 h-6 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                    />
+                  </svg>
+                  <div>
+                    <h3 className="text-lg font-bold">Chat with us</h3>
+                    <p className="text-xs opacity-90">We're here to help</p>
+                  </div>
+                </div>
+                <button
+                  onClick={toggleChatbot}
+                  className="text-white hover:bg-white/20 rounded-full p-2 transition-all"
+                  aria-label="Close chatbot"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Chat Messages */}
+              <div className="flex-1 overflow-y-auto p-4 bg-gray-50 space-y-3">
+                {chatMessages.map((msg, index) => (
+                  <div
+                    key={index}
+                    className={`flex ${
+                      msg.type === "user" ? "justify-end" : "justify-start"
+                    }`}
+                  >
+                    <div
+                      className={`max-w-[80%] rounded-2xl px-4 py-2 ${
+                        msg.type === "user"
+                          ? "text-white rounded-br-none"
+                          : "bg-white text-gray-800 rounded-bl-none shadow-sm"
+                      }`}
+                      style={
+                        msg.type === "user"
+                          ? {
+                              background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
+                            }
+                          : {}
+                      }
+                    >
+                      <p className="text-sm leading-relaxed">{msg.message}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Chat Input */}
+              <div className="p-4 bg-white border-t border-gray-200 rounded-b-3xl sm:rounded-b-2xl">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+                    placeholder="Type your message..."
+                    className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-opacity-50"
+                    style={{ "--tw-ring-color": primaryColor }}
+                  />
+                  <button
+                    onClick={handleSendMessage}
+                    className="text-white rounded-full p-2 hover:opacity-90 transition-all"
+                    style={{
+                      background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
+                    }}
+                    aria-label="Send message"
+                  >
+                    <svg
+                      className="w-6 h-6"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </div>
+    </div>
+    </div>
     </div>
   );
 };
