@@ -41,8 +41,8 @@ export const fetchRoomDataFromSheet = async () => {
       throw new Error('SETTINGS_SHEET_ID is not set in environment variables');
     }
 
-    // Fetch rooms data - columns A (field name), B (capacity), C (prices), D (calendar ID)
-    const range = `${sheetName}!A:D`;
+    // Fetch rooms data - columns A (field name), B (capacity), C (image url), D (prices), E (calendar ID)
+    const range = `${sheetName}!A:E`;
 
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
@@ -64,8 +64,9 @@ export const fetchRoomDataFromSheet = async () => {
     for (let i = 0; i < rows.length; i++) {
       const field = rows[i][0];
       const capacity = rows[i][1];
-      const price = rows[i][2];
-      const calendarId = rows[i][3];
+      const imageUrl = rows[i][2];
+      const price = rows[i][3];
+      const calendarId = rows[i][4];
 
       // Check if we're in the Rooms section
       if (field === 'Rooms') {
@@ -83,12 +84,13 @@ export const fetchRoomDataFromSheet = async () => {
             id: roomNumber,
             name: field.trim(),
             capacity: parseInt(capacity) || 2,
+            imageUrl: imageUrl || '',
             price: parseInt(price) || 0,
             calendarId: calendarId || '',
             displayName: `${field.trim()} (${capacity} Guests)` // For dropdown display
           };
           rooms.push(room);
-          console.log(`Added room: ${field.trim()} - Capacity: ${capacity}, Price: ${price}, Calendar ID: ${calendarId ? calendarId.substring(0, 20) + '...' : 'None'}`);
+          console.log(`Added room: ${field.trim()} - Capacity: ${capacity}, Image URL: ${imageUrl ? imageUrl.substring(0, 30) + '...' : 'None'}, Price: ${price}, Calendar ID: ${calendarId ? calendarId.substring(0, 20) + '...' : 'None'}`);
         }
       }
 
