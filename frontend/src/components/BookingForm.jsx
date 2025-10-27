@@ -716,10 +716,12 @@ const BookingForm = () => {
 
     const qa = qaData[index];
     if (!qa) {
-      // All questions finished - stop autoplay
-      setIsAutoPlaying(false);
-      setHasFinished(true);
-      setCurrentQAIndex(0);
+      // All questions finished - restart from beginning
+      const timer = setTimeout(() => {
+        setCurrentQAIndex(0);
+        playNextQA(0, forcePlay);
+      }, 3000);
+      timersRef.current.push(timer);
       return;
     }
 
@@ -769,36 +771,12 @@ const BookingForm = () => {
     timersRef.current.push(typingTimer);
   };
 
-  // Pause/Resume/Restart auto-play
+  // Pause/Resume auto-play
   const toggleAutoPlay = () => {
     if (isAutoPlaying) {
       // Pause - clear all running timers
       setIsAutoPlaying(false);
       clearAllTimers();
-    } else if (hasFinished) {
-      // Restart from beginning
-      setIsAutoPlaying(true);
-      setHasFinished(false);
-      setChatMessages([]);
-      setCurrentQAIndex(0);
-      setShowWelcome(false);
-
-      // Show welcome message again and start
-      setTimeout(() => {
-        const welcomeMsg = {
-          id: Date.now(),
-          type: 'bot',
-          text: `Welcome to ${hotelName}! 👋\n\nI'm your hotel guide. I'll show you some helpful information about our hotel. Sit back and enjoy!`,
-          timestamp: new Date()
-        };
-        setChatMessages([welcomeMsg]);
-        setTimeout(scrollToBottom, 100);
-
-        // Start auto-play
-        setTimeout(() => {
-          playNextQA(0, true);
-        }, 3000);
-      }, 300);
     } else {
       // Resume - continue from current index
       setIsAutoPlaying(true);
@@ -1213,9 +1191,6 @@ const BookingForm = () => {
                   </svg>
                   Hotel Guide Bot
                 </h3>
-                <p className="text-sm opacity-90 mt-1">
-                  Ask me anything about the hotel
-                </p>
               </div>
 
               {/* Chat Messages Area */}
@@ -1309,15 +1284,8 @@ const BookingForm = () => {
                 <div className="p-4 bg-white border-t border-gray-200 flex-shrink-0">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1">
-                        <div className={`w-2 h-2 rounded-full ${isAutoPlaying ? 'bg-green-500 animate-pulse' : hasFinished ? 'bg-blue-500' : 'bg-gray-400'}`}></div>
-                        <span className="text-xs text-gray-600 font-medium">
-                          {isAutoPlaying ? 'Auto-playing' : hasFinished ? 'Finished' : 'Paused'}
-                        </span>
-                      </div>
-                      <span className="text-xs text-gray-400">•</span>
-                      <span className="text-xs text-gray-500">
-                        {currentQAIndex + 1} / {qaData.length}
+                      <span className="text-xs text-gray-600 font-medium">
+                        Showing {currentQAIndex + 1}/{qaData.length}
                       </span>
                     </div>
                     <button
@@ -1331,13 +1299,6 @@ const BookingForm = () => {
                             <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
                           </svg>
                           Pause
-                        </>
-                      ) : hasFinished ? (
-                        <>
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 5V2L8 6l4 4V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
-                          </svg>
-                          Restart
                         </>
                       ) : (
                         <>
@@ -1986,7 +1947,6 @@ const BookingForm = () => {
                   </svg>
                   <div className="min-w-0">
                     <h3 className="text-base font-bold truncate">Hotel Guide Bot</h3>
-                    <p className="text-xs opacity-90 truncate">Ask me anything</p>
                   </div>
                 </div>
                 <button
@@ -2101,15 +2061,8 @@ const BookingForm = () => {
                 <div className="p-3 bg-white border-t border-gray-200 flex-shrink-0">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1">
-                        <div className={`w-2 h-2 rounded-full ${isAutoPlaying ? 'bg-green-500 animate-pulse' : hasFinished ? 'bg-blue-500' : 'bg-gray-400'}`}></div>
-                        <span className="text-xs text-gray-600 font-medium">
-                          {isAutoPlaying ? 'Auto-playing' : hasFinished ? 'Finished' : 'Paused'}
-                        </span>
-                      </div>
-                      <span className="text-xs text-gray-400">•</span>
-                      <span className="text-xs text-gray-500">
-                        {currentQAIndex + 1} / {qaData.length}
+                      <span className="text-xs text-gray-600 font-medium">
+                        Showing {currentQAIndex + 1}/{qaData.length}
                       </span>
                     </div>
                     <button
