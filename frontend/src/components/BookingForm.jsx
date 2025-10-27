@@ -716,10 +716,29 @@ const BookingForm = () => {
 
     const qa = qaData[index];
     if (!qa) {
-      // All questions finished - restart from beginning
+      // All questions finished - clear chat and restart from beginning
       const timer = setTimeout(() => {
+        setChatMessages([]);
         setCurrentQAIndex(0);
-        playNextQA(0, forcePlay);
+
+        // Show welcome message again
+        const welcomeTimer = setTimeout(() => {
+          const welcomeMsg = {
+            id: Date.now(),
+            type: 'bot',
+            text: `Welcome to ${hotelName}! 👋\n\nI'm your hotel guide. I'll show you some helpful information about our hotel. Sit back and enjoy!`,
+            timestamp: new Date()
+          };
+          setChatMessages([welcomeMsg]);
+          setTimeout(scrollToBottom, 100);
+
+          // Start playing from first question
+          const startTimer = setTimeout(() => {
+            playNextQA(0, forcePlay);
+          }, 2000);
+          timersRef.current.push(startTimer);
+        }, 500);
+        timersRef.current.push(welcomeTimer);
       }, 3000);
       timersRef.current.push(timer);
       return;
@@ -739,36 +758,26 @@ const BookingForm = () => {
     const scrollTimer1 = setTimeout(scrollToBottom, 100);
     timersRef.current.push(scrollTimer1);
 
-    // Show typing indicator
-    const typingTimer = setTimeout(() => {
-      setIsTyping(true);
+    // Add bot answer immediately without typing effect
+    const answerTimer = setTimeout(() => {
+      const botMsg = {
+        id: Date.now() + 1,
+        type: 'bot',
+        text: qa.answer,
+        timestamp: new Date()
+      };
+      setChatMessages(prev => [...prev, botMsg]);
 
-      // After typing delay, add bot answer with typewriter effect
-      const answerTimer = setTimeout(() => {
-        const botMsg = {
-          id: Date.now() + 1,
-          type: 'bot',
-          text: '',
-          timestamp: new Date()
-        };
-        setChatMessages(prev => [...prev, botMsg]);
-        setCurrentTypingText(qa.answer);
+      const scrollTimer2 = setTimeout(scrollToBottom, 100);
+      timersRef.current.push(scrollTimer2);
 
-        const scrollTimer2 = setTimeout(scrollToBottom, 100);
-        timersRef.current.push(scrollTimer2);
-
-        // Calculate answer length to determine next Q&A delay
-        const answerDelay = qa.answer.length * 20 + 3000; // 20ms per char + 3s pause
-
-        // Play next Q&A
-        const nextTimer = setTimeout(() => {
-          playNextQA(index + 1, forcePlay);
-        }, answerDelay);
-        timersRef.current.push(nextTimer);
-      }, 1200 + Math.random() * 800);
-      timersRef.current.push(answerTimer);
-    }, 300);
-    timersRef.current.push(typingTimer);
+      // Wait 2 seconds then play next Q&A
+      const nextTimer = setTimeout(() => {
+        playNextQA(index + 1, forcePlay);
+      }, 2000);
+      timersRef.current.push(nextTimer);
+    }, 500);
+    timersRef.current.push(answerTimer);
   };
 
   // Pause/Resume auto-play
