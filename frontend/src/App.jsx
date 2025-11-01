@@ -39,6 +39,7 @@ import ScrollToTop from "./components/ScrollToTop";
 import BookingForm from "./components/BookingForm";
 import MyBookings from "./components/MyBookings";
 import Invoices from "./components/Invoices";
+import ColdEmail from "./components/ColdEmail";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import "./App.css";
@@ -110,6 +111,7 @@ function App() {
                               <Route path="/books/:slug" element={<BookDetail />} />
                               <Route path="/courses" element={<Courses />} />
                               <Route path="/contact" element={<ContactUs />} />
+                              <Route path="/cold-email" element={<ColdEmail />} />
                               <Route path="/bookings" element={<BookingForm />} />
                               <Route path="/my-bookings" element={<MyBookings />} />
                               <Route path="/invoices" element={<Invoices />} />

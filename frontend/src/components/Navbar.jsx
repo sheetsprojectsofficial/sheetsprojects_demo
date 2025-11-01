@@ -116,7 +116,7 @@ const Navbar = () => {
           id: key.toLowerCase().replace(/\s+/g, ''),
           name: key,
           visible: isVisible,
-          href: key.toLowerCase() === 'home' ? '/' : `/${key.toLowerCase()}`, // Home goes to /, others to their paths
+          href: key.toLowerCase() === 'home' ? '/' : `/${key.toLowerCase().replace(/\s+/g, '-')}`, // Home goes to /, others to their paths with spaces converted to hyphens
           fromSheets: true
         });
       }

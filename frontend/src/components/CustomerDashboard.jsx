@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../hooks/useTheme';
 import { useSettings } from '../context/SettingsContext';
 import axios from 'axios';
+import { toast } from 'react-toastify';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5004';
 
@@ -164,13 +165,14 @@ const CustomerDashboard = () => {
 
   return (
     <div className="max-w-6xl mx-auto">
-      {/* Only show My Purchases header if there are purchases */}
-      {purchasedProducts.length > 0 && (
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2" style={{color: 'var(--brand-primary)'}}>My Purchases</h1>
-          <p className="text-gray-600">View and access your purchased products and books</p>
-        </div>
-      )}
+      <>
+          {/* Only show My Purchases header if there are purchases */}
+          {purchasedProducts.length > 0 && (
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold mb-2" style={{color: 'var(--brand-primary)'}}>My Purchases</h1>
+              <p className="text-gray-600">View and access your purchased products and books</p>
+            </div>
+          )}
 
       {/* Only show purchases section if there are purchases */}
       {purchasedProducts.length > 0 && (
@@ -363,9 +365,38 @@ const CustomerDashboard = () => {
         </div>
       )}
 
-      {/* My Bookings Section - Only show if Bookings menu is enabled */}
+          <div className="mt-8 p-6 rounded-lg" style={{
+            backgroundColor: 'color-mix(in srgb, var(--brand-primary) 8%, transparent)',
+            border: '1px solid color-mix(in srgb, var(--brand-primary) 25%, transparent)'
+          }}>
+            <div className="flex">
+              <svg className="w-6 h-6 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{color: 'var(--brand-primary)'}}>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div className="ml-3">
+                <h4 className="text-lg font-medium mb-2" style={{color: 'var(--brand-primary)'}}>Need Help?</h4>
+                <p className="mb-4" style={{color: 'color-mix(in srgb, var(--brand-primary) 80%, black)'}}>
+                  If you're having trouble accessing your solutions or need support, don't hesitate to reach out to us.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={() => navigate('/contact')}
+                    className={`${themeClasses.primaryButton} inline-flex items-center cursor-pointer px-4 py-2 font-medium rounded-lg transition-colors duration-200`}
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    Email Support
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+
+      {/* My Bookings Section */}
       {isBookingsMenuEnabled() && (
-        <div className="mt-12 mb-8">
+        <div className="mb-8">
           <h2 className="text-2xl font-bold mb-4" style={{color: 'var(--brand-primary)'}}>My Bookings</h2>
           <p className="text-gray-600 mb-6">View your room bookings and reservations</p>
 
@@ -437,34 +468,6 @@ const CustomerDashboard = () => {
           )}
         </div>
       )}
-
-      <div className="mt-8 p-6 rounded-lg" style={{
-        backgroundColor: 'color-mix(in srgb, var(--brand-primary) 8%, transparent)',
-        border: '1px solid color-mix(in srgb, var(--brand-primary) 25%, transparent)'
-      }}>
-        <div className="flex">
-          <svg className="w-6 h-6 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{color: 'var(--brand-primary)'}}>
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <div className="ml-3">
-            <h4 className="text-lg font-medium mb-2" style={{color: 'var(--brand-primary)'}}>Need Help?</h4>
-            <p className="mb-4" style={{color: 'color-mix(in srgb, var(--brand-primary) 80%, black)'}}>
-              If you're having trouble accessing your solutions or need support, don't hesitate to reach out to us.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <button
-                onClick={() => navigate('/contact')}
-                className={`${themeClasses.primaryButton} inline-flex items-center cursor-pointer px-4 py-2 font-medium rounded-lg transition-colors duration-200`}
-              >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-                Email Support
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

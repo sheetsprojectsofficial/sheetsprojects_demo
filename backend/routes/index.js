@@ -21,6 +21,7 @@ import bookingRoutes from './booking.js';
 import paymentRoutes from './payment.js';
 import cartRoutes from './cart.js';
 import chatbotRoutes from './chatbot.js';
+import coldEmailRoutes from './coldEmail.js';
 
 const router = express.Router();
 
@@ -94,5 +95,8 @@ router.use('/cart', cartRoutes);
 
 // Mount chatbot routes
 router.use('/chatbot', chatbotRoutes);
+
+// Mount cold email routes
+router.use('/cold-email', coldEmailRoutes);
 
 export default router; 

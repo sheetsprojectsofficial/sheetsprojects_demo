@@ -9,6 +9,7 @@ import Orders from './Orders';
 import CustomerDashboard from './CustomerDashboard';
 import AdminBookings from './AdminBookings';
 import Invoices from './Invoices';
+import ColdEmail from './ColdEmail';
 import { toast } from 'react-toastify';
 
 const Dashboard = () => {
@@ -301,6 +302,14 @@ const Dashboard = () => {
                   <span className="text-lg mr-3">🧾</span>
                   <span className="flex-1 text-left">Invoice</span>
                 </button>
+                <button
+                  onClick={() => handleTabChange('cold-email')}
+                  className={`${activeTab === 'cold-email' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer px-3 py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full`}
+                  style={{ display: 'flex', alignItems: 'center', width: '100%' }}
+                >
+                  <span className="text-lg mr-3">📧</span>
+                  <span className="flex-1 text-left">Cold Email Finder</span>
+                </button>
               </nav>
             )}
           </div>
@@ -336,6 +345,7 @@ const Dashboard = () => {
                     <>
                       {activeTab === 'purchases' && 'My Purchases'}
                       {activeTab === 'invoices' && 'Invoice Generator'}
+                      {activeTab === 'cold-email' && 'Cold Email Finder'}
                     </>
                   )}
                 </h2>
@@ -353,6 +363,7 @@ const Dashboard = () => {
                     <>
                       {activeTab === 'purchases' && 'View and access your purchased solutions'}
                       {activeTab === 'invoices' && 'Create professional invoices instantly'}
+                      {activeTab === 'cold-email' && 'Extract emails from company websites automatically'}
                     </>
                   )}
                 </p>
@@ -432,6 +443,7 @@ const Dashboard = () => {
                 <>
                   {activeTab === 'purchases' && <CustomerDashboard />}
                   {activeTab === 'invoices' && <Invoices />}
+                  {activeTab === 'cold-email' && <ColdEmail />}
                 </>
               )}
             </div>
