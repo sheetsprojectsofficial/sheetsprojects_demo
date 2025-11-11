@@ -14,11 +14,15 @@ const Navbar = () => {
   const { settings, getSettingValue } = useSettings();
   const { isAuthenticated, logout, user, isAdmin } = useAuth();
   const { cart } = useCart();
-  const { brandName } = useBrand();
+  const { brandName: contextBrandName } = useBrand();
   const { getThemeClasses } = useTheme();
-  
+
   const themeClasses = getThemeClasses();
-  
+
+  // Get brand name from settings (Google Sheets) - prioritize this over context
+  const sheetsBrandName = getSettingValue('Brand Name', '') || getSettingValue('Brand name', '');
+  const brandName = sheetsBrandName || contextBrandName;
+
   // Get logo URL from settings and convert to usable format
   const rawLogoUrl = getSettingValue('Logo URL', '') || getSettingValue('logo url', '') || getSettingValue('Logo url', '');
   const logoUrl = rawLogoUrl ? convertImageUrl(rawLogoUrl) : '';
