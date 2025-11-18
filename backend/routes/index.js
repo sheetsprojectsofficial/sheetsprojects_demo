@@ -22,6 +22,8 @@ import paymentRoutes from './payment.js';
 import cartRoutes from './cart.js';
 import chatbotRoutes from './chatbot.js';
 import coldEmailRoutes from './coldEmail.js';
+import emailCampaignRoutes from './emailCampaign.js';
+import emailConfigRoutes from './emailConfig.js';
 
 const router = express.Router();
 
@@ -98,5 +100,11 @@ router.use('/chatbot', chatbotRoutes);
 
 // Mount cold email routes
 router.use('/cold-email', coldEmailRoutes);
+
+// Mount email campaign routes
+router.use('/email-campaigns', emailCampaignRoutes);
+
+// Mount email config routes
+router.use('/email-config', emailConfigRoutes);
 
 export default router; 
