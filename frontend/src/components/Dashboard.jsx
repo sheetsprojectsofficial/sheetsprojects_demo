@@ -281,6 +281,14 @@ const Dashboard = () => {
                   <span className="text-lg mr-3">🏨</span>
                   <span className="flex-1 text-left">Bookings</span>
                 </button>
+                <button
+                  onClick={() => handleTabChange('email-campaign')}
+                  className={`${activeTab === 'email-campaign' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer px-3 py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full`}
+                  style={{ display: 'flex', alignItems: 'center', width: '100%' }}
+                >
+                  <span className="text-lg mr-3">📨</span>
+                  <span className="flex-1 text-left">Email Campaign</span>
+                </button>
               </nav>
             ) : (
               <nav className="px-2 py-4 space-y-1">
@@ -349,6 +357,7 @@ const Dashboard = () => {
                       {activeTab === 'books' && 'Book Management'}
                       {activeTab === 'orders' && 'Orders Management'}
                       {activeTab === 'bookings' && 'Room Bookings Management'}
+                      {activeTab === 'email-campaign' && 'Email Campaign Management'}
                     </>
                   ) : (
                     <>
@@ -368,6 +377,7 @@ const Dashboard = () => {
                       {activeTab === 'books' && 'Manage books from Google Drive folders'}
                       {activeTab === 'orders' && 'View and manage customer orders'}
                       {activeTab === 'bookings' && 'View and manage room bookings'}
+                      {activeTab === 'email-campaign' && 'Create and manage email campaigns'}
                     </>
                   ) : (
                     <>
@@ -449,6 +459,7 @@ const Dashboard = () => {
                   {activeTab === 'books' && <AdminBooks />}
                   {activeTab === 'orders' && <Orders />}
                   {activeTab === 'bookings' && <AdminBookings />}
+                  {activeTab === 'email-campaign' && <EmailCampaign />}
                 </div>
               ) : (
                 <>

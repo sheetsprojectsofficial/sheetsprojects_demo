@@ -4,12 +4,24 @@ import { getDecryptedPassword } from '../controllers/emailConfigController.js';
 // Create and configure nodemailer transporter
 const createTransporter = async (userId) => {
   try {
-    // Get email config from database
+    if (!userId) {
+      throw new Error('User ID is required to create email transporter');
+    }
+
+    console.log(`[EMAIL SERVICE] Creating transporter for userId: ${userId}`);
+
+    // Get email config from database using the static method
     const EmailConfig = (await import('../models/EmailConfig.js')).default;
-    const config = await EmailConfig.findOne({ userId });
+    const config = await EmailConfig.findByUserId(userId);
 
     if (!config) {
       throw new Error('Email configuration not found. Please configure your email settings first.');
+    }
+
+    // Verify the config belongs to the requested user (extra security)
+    if (config.userId !== userId) {
+      console.error(`[EMAIL SERVICE] Security violation: Config userId (${config.userId}) does not match requested userId (${userId})`);
+      throw new Error('Access denied: Invalid email configuration');
     }
 
     // Decrypt the app password
@@ -18,6 +30,8 @@ const createTransporter = async (userId) => {
     if (!appPassword) {
       throw new Error('Failed to decrypt app password');
     }
+
+    console.log(`[EMAIL SERVICE] Transporter created successfully for userId: ${userId}, email: ${config.fromEmail}`);
 
     // Create transporter
     const transporter = nodemailer.createTransport({
@@ -30,7 +44,7 @@ const createTransporter = async (userId) => {
 
     return { transporter, fromEmail: config.fromEmail };
   } catch (error) {
-    console.error('Error creating transporter:', error);
+    console.error('[EMAIL SERVICE] Error creating transporter:', error);
     throw error;
   }
 };
