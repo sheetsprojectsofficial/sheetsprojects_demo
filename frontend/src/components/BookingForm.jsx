@@ -4,7 +4,7 @@ import { toast } from "react-toastify";
 import axios from "axios";
 import { useSettings } from "../context/SettingsContext";
 import { useAuth } from "../context/AuthContext";
-import { optimizeImageUrl } from "../utils/imageUtils";
+
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5004";
 

@@ -3,7 +3,8 @@ import { requireAuth } from '../middleware/auth.js';
 import {
   getEmailConfig,
   saveEmailConfig,
-  deleteEmailConfig
+  deleteEmailConfig,
+  testEmailConfig
 } from '../controllers/emailConfigController.js';
 
 const router = express.Router();
@@ -16,6 +17,9 @@ router.get('/', getEmailConfig);
 
 // Create or update email configuration
 router.post('/', saveEmailConfig);
+
+// Test email configuration
+router.post('/test', testEmailConfig);
 
 // Delete email configuration
 router.delete('/', deleteEmailConfig);

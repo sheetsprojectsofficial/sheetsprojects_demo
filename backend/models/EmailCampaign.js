@@ -39,7 +39,8 @@ const emailCampaignSchema = new mongoose.Schema({
   },
   docUrl: {
     type: String,
-    required: true,
+    required: false,
+    default: '',
     trim: true
   },
   docContent: {

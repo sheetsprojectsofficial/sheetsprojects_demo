@@ -62,14 +62,17 @@ export const requireAuth = async (req, res, next) => {
 export const requireAdmin = async (req, res, next) => {
   try {
     const adminUser = await User.findOne({ uid: req.user.uid });
-    
+
     if (!adminUser || adminUser.role !== 'admin') {
       return res.status(403).json({ success: false, message: 'Admin access required' });
     }
-    
+
     next();
   } catch (error) {
     console.error('Admin verification error:', error);
     return res.status(500).json({ success: false, message: 'Internal server error' });
   }
-}; 
+};
+
+// Alias for verifyToken - same as requireAuth
+export const verifyToken = requireAuth; 

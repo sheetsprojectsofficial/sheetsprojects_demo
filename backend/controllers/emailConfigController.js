@@ -1,4 +1,5 @@
 import EmailConfig from '../models/EmailConfig.js';
+import nodemailer from 'nodemailer';
 
 // Helper function to convert string to hex
 const stringToHex = (str) => {
@@ -253,9 +254,54 @@ const getDecryptedPassword = async (userId) => {
   }
 };
 
+// Test email configuration by sending a test email
+const testEmailConfig = async (req, res) => {
+  try {
+    if (!req.user || !req.user.uid) {
+      return res.status(401).json({
+        success: false,
+        error: 'Authentication required'
+      });
+    }
+
+    const { fromEmail, appPassword } = req.body;
+
+    if (!fromEmail || !appPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and app password are required'
+      });
+    }
+
+    // Create transporter with provided credentials
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: fromEmail,
+        pass: appPassword
+      }
+    });
+
+    // Verify the connection
+    await transporter.verify();
+
+    res.json({
+      success: true,
+      message: 'Email configuration is valid'
+    });
+  } catch (error) {
+    console.error('[EMAIL CONFIG] Test failed:', error);
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Invalid email configuration. Please check your credentials.'
+    });
+  }
+};
+
 export {
   getEmailConfig,
   saveEmailConfig,
   deleteEmailConfig,
-  getDecryptedPassword
+  getDecryptedPassword,
+  testEmailConfig
 };

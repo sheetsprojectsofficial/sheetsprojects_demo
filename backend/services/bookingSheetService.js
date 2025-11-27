@@ -1,7 +1,7 @@
 import { google } from 'googleapis';
 
 const authenticateGoogleSheets = () => {
-  const credentials = {
+  const credentials = {  
     type: "service_account",
     project_id: process.env.FIREBASE_PROJECT_ID,
     private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,

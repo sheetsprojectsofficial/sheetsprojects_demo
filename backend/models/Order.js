@@ -225,12 +225,6 @@ orderSchema.post('findOneAndDelete', async function(doc) {
   }
 });
 
-// CASCADE DELETE: Handle deleteOne and deleteMany
-orderSchema.post('deleteOne', async function(result) {
-  // This runs after deleteOne, but we need to find the document first
-  // So we use findOneAndDelete instead in the controller
-});
-
 const Order = mongoose.model('Order', orderSchema);
 
 export default Order;

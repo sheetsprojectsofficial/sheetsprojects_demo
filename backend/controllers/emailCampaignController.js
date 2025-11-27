@@ -1,6 +1,7 @@
 import EmailCampaign from '../models/EmailCampaign.js';
 import axios from 'axios';
-import { sendEmail } from '../utils/emailService.js';
+import { sendEmail, isEmailConfigured } from '../utils/emailService.js';
+import nodemailer from 'nodemailer';
 
 // Get next campaign number for naming (Untitled0, Untitled1, etc.)
 export const getNextCampaignNumber = async (req, res) => {
@@ -147,10 +148,10 @@ export const createCampaign = async (req, res) => {
     const { name, docUrl, docContent, recipients } = req.body;
     const userId = req.user.uid;
 
-    if (!name || !docUrl || !docContent) {
+    if (!name || !docContent) {
       return res.status(400).json({
         success: false,
-        error: 'Name, document URL, and content are required'
+        error: 'Name and content are required'
       });
     }
 
@@ -163,7 +164,7 @@ export const createCampaign = async (req, res) => {
 
     const campaign = new EmailCampaign({
       name,
-      docUrl,
+      docUrl: docUrl || '',
       docContent,
       recipients: recipients.map(r => ({
         name: r.name,
@@ -388,6 +389,16 @@ export const sendEmailToRecipient = async (req, res) => {
       });
     }
 
+    // Check if email is configured before attempting to send
+    const emailConfigStatus = await isEmailConfigured(userId);
+    if (!emailConfigStatus.configured) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email not configured. Please configure your email settings first.',
+        notConfigured: true
+      });
+    }
+
     // Get the campaign
     const campaign = await EmailCampaign.findOne({
       _id: campaignId,
@@ -429,9 +440,10 @@ export const sendEmailToRecipient = async (req, res) => {
     );
 
     if (!emailResult.success) {
-      return res.status(500).json({
+      return res.status(emailResult.notConfigured ? 400 : 500).json({
         success: false,
-        error: emailResult.error || 'Failed to send email'
+        error: emailResult.error || 'Failed to send email',
+        notConfigured: emailResult.notConfigured
       });
     }
 
@@ -469,6 +481,612 @@ export const sendEmailToRecipient = async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to send email'
+    });
+  }
+};
+
+// Check if email is configured for the user
+export const checkEmailConfigStatus = async (req, res) => {
+  try {
+    const userId = req.user.uid;
+
+    const configStatus = await isEmailConfigured(userId);
+
+    res.json({
+      success: true,
+      configured: configStatus.configured,
+      email: configStatus.email || null
+    });
+  } catch (error) {
+    console.error('Error checking email config:', error);
+    res.status(500).json({
+      success: false,
+      configured: false,
+      error: 'Failed to check email configuration'
+    });
+  }
+};
+
+// Generate email content using Gemini AI
+export const generateContent = async (req, res) => {
+  try {
+    const { description } = req.body;
+
+    if (!description || !description.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Description is required",
+      });
+    }
+
+    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
+    if (!GEMINI_API_KEY || GEMINI_API_KEY === "your-gemini-api-key-here") {
+      return res.status(500).json({
+        success: false,
+        message: "Gemini API key is not configured. Please add your GEMINI_API_KEY to the .env file.",
+      });
+    }
+
+    // Call Gemini API
+    const geminiResponse = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        contents: [
+          {
+            parts: [
+              {
+                text: `You are a professional email copywriter. Based on the following campaign description, generate a professional marketing email.
+
+Campaign Description: ${description}
+
+Please provide the response in the following JSON format only (no markdown, no code blocks, just pure JSON):
+{
+  "subject": "A compelling email subject line (max 60 characters)",
+  "body": "The full HTML email body with professional styling. Use inline CSS styles. Include a proper greeting, main content paragraphs, a call-to-action if appropriate, and a professional sign-off. Make it visually appealing with good spacing and formatting."
+}
+
+Important:
+- The subject should be catchy and relevant to the campaign
+- The body should be well-formatted HTML with inline styles
+- Use a clean, professional design with proper spacing
+- Keep the tone professional yet engaging
+- Return ONLY valid JSON, no additional text`,
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 2048,
+        },
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    // Extract the generated text from Gemini response
+    const generatedText = geminiResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!generatedText) {
+      throw new Error("No content generated from Gemini API");
+    }
+
+    // Parse the JSON response from Gemini
+    let parsedContent;
+    try {
+      // Clean the response - remove any markdown code blocks if present
+      let cleanedText = generatedText.trim();
+      if (cleanedText.startsWith("```json")) {
+        cleanedText = cleanedText.replace(/^```json\n?/, "").replace(/\n?```$/, "");
+      } else if (cleanedText.startsWith("```")) {
+        cleanedText = cleanedText.replace(/^```\n?/, "").replace(/\n?```$/, "");
+      }
+      parsedContent = JSON.parse(cleanedText);
+    } catch (parseError) {
+      console.error("Failed to parse Gemini response:", generatedText);
+      // Fallback: create a simple email from the description
+      parsedContent = {
+        subject: description.substring(0, 60) + (description.length > 60 ? "..." : ""),
+        body: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #333; border-bottom: 2px solid #4f46e5; padding-bottom: 10px;">
+              ${description.split("\n")[0]}
+            </h2>
+            <div style="margin-top: 20px; line-height: 1.6; color: #555;">
+              <p>${description.replace(/\n/g, "</p><p>")}</p>
+            </div>
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #888; font-size: 14px;">
+              <p>Best regards,<br><strong>Your Team</strong></p>
+            </div>
+          </div>
+        `,
+      };
+    }
+
+    res.json({
+      success: true,
+      subject: parsedContent.subject,
+      body: parsedContent.body,
+    });
+  } catch (error) {
+    console.error("Error generating content:", error.response?.data || error.message);
+
+    if (error.response?.status === 400) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid request to Gemini API. Please check your API key.",
+      });
+    }
+
+    if (error.response?.status === 403) {
+      return res.status(403).json({
+        success: false,
+        message: "Gemini API access denied. Please verify your API key has the correct permissions.",
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to generate content. Please try again.",
+    });
+  }
+};
+
+// Generate subject line using Gemini AI for existing content
+export const generateSubject = async (req, res) => {
+  try {
+    const { content } = req.body;
+
+    if (!content || !content.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Content is required",
+      });
+    }
+
+    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
+    if (!GEMINI_API_KEY || GEMINI_API_KEY === "your-gemini-api-key-here") {
+      return res.status(500).json({
+        success: false,
+        message: "Gemini API key is not configured.",
+      });
+    }
+
+    // Strip HTML tags to get plain text for analysis
+    const plainText = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    const truncatedContent = plainText.substring(0, 2000);
+
+    // Call Gemini API
+    const geminiResponse = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        contents: [
+          {
+            parts: [
+              {
+                text: `Based on the following email content, generate a compelling and professional email subject line that would encourage recipients to open the email.
+
+Email Content:
+${truncatedContent}
+
+Requirements:
+- Subject line should be 40-60 characters max
+- Make it engaging and relevant to the content
+- Do not use spammy words like "FREE", "URGENT", "ACT NOW"
+- Return ONLY the subject line text, nothing else (no quotes, no explanation)`
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 100,
+        },
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    const generatedSubject = geminiResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!generatedSubject) {
+      throw new Error("No subject generated from Gemini API");
+    }
+
+    // Clean up the subject (remove quotes if present)
+    const cleanSubject = generatedSubject.trim().replace(/^["']|["']$/g, '');
+
+    res.json({
+      success: true,
+      subject: cleanSubject,
+    });
+  } catch (error) {
+    console.error("Error generating subject:", error.response?.data || error.message);
+    res.status(500).json({
+      success: false,
+      message: "Failed to generate subject. Please try again.",
+    });
+  }
+};
+
+// Extract email from visiting card image using Gemini Vision
+export const extractEmailFromCard = async (req, res) => {
+  try {
+    const { image } = req.body;
+
+    if (!image) {
+      return res.status(400).json({
+        success: false,
+        message: "Image is required",
+      });
+    }
+
+    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
+    if (!GEMINI_API_KEY || GEMINI_API_KEY === "your-gemini-api-key-here") {
+      return res.status(500).json({
+        success: false,
+        message: "Gemini API key is not configured.",
+      });
+    }
+
+    // Extract base64 data from data URL
+    const base64Match = image.match(/^data:image\/(\w+);base64,(.+)$/);
+    if (!base64Match) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid image format. Please provide a valid base64 image.",
+      });
+    }
+
+    const mimeType = `image/${base64Match[1]}`;
+    const base64Data = base64Match[2];
+
+    let emails = [];
+
+    // Try Gemini Vision API - First extract all text, then find emails
+    try {
+      console.log("[OCR] Attempting text extraction with Gemini Vision...");
+
+      // Step 1: Extract ALL text from the image first
+      const textResponse = await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          contents: [
+            {
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: mimeType,
+                    data: base64Data
+                  }
+                },
+                {
+                  text: `You are an OCR system. Read and extract ALL text visible in this business card image exactly as it appears.
+
+Output the text preserving the exact characters - do not interpret or change anything.
+Pay special attention to email addresses - they follow the format: something@domain.extension
+For example: john@example.com, contact@company.org, info@business.net
+
+Output ALL text you see, line by line.`
+                }
+              ],
+            },
+          ],
+          generationConfig: {
+            temperature: 0,
+            maxOutputTokens: 1000,
+          },
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+          timeout: 30000,
+        }
+      );
+
+      const extractedText = textResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      console.log("[OCR] Extracted text:", extractedText);
+
+      if (extractedText) {
+        // Use regex to find email patterns in the extracted text
+        const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi;
+        const matches = extractedText.match(emailRegex);
+
+        if (matches && matches.length > 0) {
+          emails = matches.map(e => e.toLowerCase().trim());
+          console.log("[OCR] Found emails via regex:", emails);
+        } else {
+          // Step 2: If no emails found, ask Gemini to specifically identify emails
+          console.log("[OCR] No emails found via regex, asking Gemini to identify emails...");
+
+          const emailResponse = await axios.post(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+            {
+              contents: [
+                {
+                  parts: [
+                    {
+                      inlineData: {
+                        mimeType: mimeType,
+                        data: base64Data
+                      }
+                    },
+                    {
+                      text: `Look at this business card image carefully. Find and extract the email address(es).
+
+An email address has this format: localpart@domain.tld
+Examples: john@gmail.com, contact@company.org, info@business.co.in
+
+Return ONLY the complete email address(es), one per line.
+If you see partial text like "info@" followed by domain text, combine them into a complete email.
+If no valid email is found, return exactly: NONE`
+                    }
+                  ],
+                },
+              ],
+              generationConfig: {
+                temperature: 0,
+                maxOutputTokens: 500,
+              },
+            },
+            {
+              headers: {
+                "Content-Type": "application/json",
+              },
+              timeout: 30000,
+            }
+          );
+
+          const emailText = emailResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          console.log("[OCR] Email extraction response:", emailText);
+
+          if (emailText && emailText.toUpperCase().trim() !== "NONE") {
+            const emailMatches = emailText.match(emailRegex);
+            if (emailMatches && emailMatches.length > 0) {
+              emails = emailMatches.map(e => e.toLowerCase().trim());
+              console.log("[OCR] Found emails from second attempt:", emails);
+            }
+          }
+        }
+      }
+    } catch (geminiError) {
+      console.error("[OCR] Gemini Vision failed:", geminiError.response?.data || geminiError.message);
+
+      // Try alternative: simpler prompt
+      try {
+        console.log("[OCR] Trying alternative simpler approach...");
+
+        const textResponse = await axios.post(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+          {
+            contents: [
+              {
+                parts: [
+                  {
+                    inlineData: {
+                      mimeType: mimeType,
+                      data: base64Data
+                    }
+                  },
+                  {
+                    text: `Extract ALL text from this image exactly as written. Do not summarize or interpret. Just output the raw text.`
+                  }
+                ],
+              },
+            ],
+            generationConfig: {
+              temperature: 0,
+              maxOutputTokens: 1000,
+            },
+          },
+          {
+            headers: {
+              "Content-Type": "application/json",
+            },
+            timeout: 30000,
+          }
+        );
+
+        const allText = textResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        console.log("[OCR] Extracted text:", allText);
+
+        if (allText) {
+          const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi;
+          const matches = allText.match(emailRegex);
+
+          if (matches && matches.length > 0) {
+            emails = matches.map(e => e.toLowerCase().trim());
+          }
+        }
+      } catch (altError) {
+        console.error("[OCR] Alternative approach also failed:", altError.message);
+      }
+    }
+
+    // Remove duplicates and validate emails
+    emails = [...new Set(emails)].filter(email => {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return emailRegex.test(email);
+    });
+
+    console.log(`[OCR] Final extracted emails:`, emails);
+
+    if (emails.length === 0) {
+      return res.json({
+        success: true,
+        emails: [],
+        count: 0,
+        message: "No email addresses found in the image. Please ensure the image is clear and contains visible email addresses."
+      });
+    }
+
+    res.json({
+      success: true,
+      emails: emails,
+      count: emails.length,
+    });
+  } catch (error) {
+    console.error("Error extracting email from card:", error.response?.data || error.message);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to extract email from the image. Please try again with a clearer image.",
+    });
+  }
+};
+
+// Send test email
+export const sendTestEmail = async (req, res) => {
+  try {
+    const { to, subject, body } = req.body;
+    const userId = req.user?.uid;
+
+    if (!to || !subject || !body) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields (to, subject, body)",
+      });
+    }
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+    }
+
+    // Use the saved email config from database
+    const emailConfigStatus = await isEmailConfigured(userId);
+    if (!emailConfigStatus.configured) {
+      return res.status(400).json({
+        success: false,
+        message: "Email not configured. Please configure your email settings first.",
+        notConfigured: true
+      });
+    }
+
+    // Send email using the email service (which uses saved config)
+    const result = await sendEmail(userId, to, `[TEST] ${subject}`, body);
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        message: result.error || "Failed to send test email",
+        notConfigured: result.notConfigured
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Test email sent successfully",
+    });
+  } catch (error) {
+    console.error("Error sending test email:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to send test email",
+    });
+  }
+};
+
+// Create campaign and send emails (wizard flow)
+export const createAndSendCampaign = async (req, res) => {
+  try {
+    const { name, subject, body, recipients, attachments } = req.body;
+    const userId = req.user.uid;
+
+    // Validation
+    if (!subject || !body || !recipients || recipients.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Subject, body, and at least one recipient are required",
+      });
+    }
+
+    // Check if email is configured
+    const emailConfigStatus = await isEmailConfigured(userId);
+    if (!emailConfigStatus.configured) {
+      return res.status(400).json({
+        success: false,
+        message: "Email not configured. Please configure your email settings first.",
+        notConfigured: true
+      });
+    }
+
+    // Create campaign with provided name or generate default
+    const campaignName = name || `Campaign ${new Date().toLocaleDateString()}`;
+    const campaign = new EmailCampaign({
+      name: campaignName,
+      docUrl: "",
+      docContent: body,
+      recipients: recipients.map((email) => ({
+        name: email.split("@")[0],
+        email: email,
+        subject: subject,
+        sent: false,
+      })),
+      status: "draft",
+      createdBy: userId,
+    });
+
+    await campaign.save();
+
+    // Send emails to all recipients using the email service
+    let sentCount = 0;
+    const errors = [];
+
+    for (const recipientEmail of recipients) {
+      try {
+        const result = await sendEmail(userId, recipientEmail, subject, body);
+
+        if (result.success) {
+          sentCount++;
+          // Mark as sent in campaign
+          const recipient = campaign.recipients.find((r) => r.email === recipientEmail);
+          if (recipient) {
+            recipient.sent = true;
+            recipient.sentAt = new Date();
+          }
+        } else {
+          errors.push({ email: recipientEmail, error: result.error });
+        }
+      } catch (emailError) {
+        console.error(`Error sending to ${recipientEmail}:`, emailError);
+        errors.push({ email: recipientEmail, error: emailError.message });
+      }
+    }
+
+    // Update campaign status
+    campaign.sentCount = sentCount;
+    campaign.status = sentCount === recipients.length ? "sent" : "partial";
+    await campaign.save();
+
+    res.json({
+      success: true,
+      message: `Campaign created! Sent ${sentCount}/${recipients.length} emails successfully.`,
+      campaign: {
+        id: campaign._id,
+        sentCount,
+        totalRecipients: recipients.length,
+        status: campaign.status,
+      },
+      errors: errors.length > 0 ? errors : undefined,
+    });
+  } catch (error) {
+    console.error("Error creating and sending campaign:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to create and send campaign",
     });
   }
 };

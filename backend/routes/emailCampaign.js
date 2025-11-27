@@ -8,9 +8,15 @@ import {
   updateCampaign,
   deleteCampaign,
   markEmailsSent,
-  sendEmailToRecipient
+  sendEmailToRecipient,
+  generateContent,
+  generateSubject,
+  extractEmailFromCard,
+  sendTestEmail,
+  createAndSendCampaign,
+  checkEmailConfigStatus
 } from '../controllers/emailCampaignController.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, verifyToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -19,6 +25,18 @@ router.get('/next-number', getNextCampaignNumber);
 
 // Route to fetch Google Doc content
 router.post('/fetch-doc', fetchDocContent);
+
+// AI-powered endpoints (public for wizard)
+router.post('/generate-content', generateContent);
+router.post('/generate-subject', generateSubject);
+router.post('/extract-email-from-card', extractEmailFromCard);
+
+// Test email and create-and-send require authentication
+router.post('/send-test', verifyToken, sendTestEmail);
+router.post('/create-and-send', verifyToken, createAndSendCampaign);
+
+// Check email configuration status (requires auth)
+router.get('/check-email-config', verifyToken, checkEmailConfigStatus);
 
 // Protected routes - require authentication
 router.use(requireAuth);
