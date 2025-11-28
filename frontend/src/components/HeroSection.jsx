@@ -122,12 +122,11 @@ const HeroSection = () => {
           {/* Right Side - Hero Image */}
           <div className="relative">
             {sheetsHeroImageUrl ? (
-              <div className="relative rounded-3xl overflow-hidden shadow-2xl hero-image-container">
+              <div className="relative rounded-3xl overflow-hidden shadow-2xl hero-image-container bg-gray-900">
                 <img
-                  src={optimizeImageUrl(sheetsHeroImageUrl, { width: 800, height: 600 })}
+                  src={optimizeImageUrl(sheetsHeroImageUrl, { width: 1200, height: 800, smartCrop: false })}
                   alt="Hero"
-                  className="w-full h-96 object-cover rounded-3xl"
-                  crossOrigin="anonymous"
+                  className="w-full h-auto object-contain rounded-3xl"
                   referrerPolicy="no-referrer"
                   onLoad={(e) => {
                     e.target.style.display = 'block';
@@ -145,9 +144,7 @@ const HeroSection = () => {
                     }
                   }}
                 />
-                {/* Gradient overlay for better text readability */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-3xl"></div>
-                
+
                 {/* Floating elements */}
                 <div className="absolute -top-4 -right-4 w-8 h-8 bg-blue-500 rounded-full opacity-60 animate-pulse"></div>
                 <div className="absolute -bottom-4 -left-4 w-6 h-6 bg-blue-500 rounded-full opacity-60 animate-pulse animation-delay-1000"></div>

@@ -14,7 +14,8 @@ import {
   extractEmailFromCard,
   sendTestEmail,
   createAndSendCampaign,
-  checkEmailConfigStatus
+  checkEmailConfigStatus,
+  getEmailStats
 } from '../controllers/emailCampaignController.js';
 import { requireAuth, verifyToken } from '../middleware/auth.js';
 
@@ -37,6 +38,9 @@ router.post('/create-and-send', verifyToken, createAndSendCampaign);
 
 // Check email configuration status (requires auth)
 router.get('/check-email-config', verifyToken, checkEmailConfigStatus);
+
+// Get email statistics (requires auth)
+router.get('/email-stats', verifyToken, getEmailStats);
 
 // Protected routes - require authentication
 router.use(requireAuth);

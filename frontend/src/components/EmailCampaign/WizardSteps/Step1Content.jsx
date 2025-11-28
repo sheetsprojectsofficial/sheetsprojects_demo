@@ -7,7 +7,8 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5004/api'
 
 const Step1Content = ({ campaignData, updateCampaignData, onNext, editingCampaign }) => {
   const { getToken } = useAuth();
-  const [inputMethod, setInputMethod] = useState('manual'); // 'manual', 'doc', 'ai'
+  // For editing, show manual entry; for new campaigns, show AI Generate
+  const [inputMethod, setInputMethod] = useState(editingCampaign ? 'manual' : 'ai'); // 'manual', 'doc', 'ai'
   const [docUrl, setDocUrl] = useState('');
   const [fetchingDoc, setFetchingDoc] = useState(false);
   const [campaignAbout, setCampaignAbout] = useState('');
@@ -249,6 +250,19 @@ const Step1Content = ({ campaignData, updateCampaignData, onNext, editingCampaig
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8" aria-label="Tabs">
             <button
+              onClick={() => setInputMethod('ai')}
+              className={`${
+                inputMethod === 'ai'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              AI Generate
+            </button>
+            <button
               onClick={() => setInputMethod('manual')}
               className={`${
                 inputMethod === 'manual'
@@ -273,19 +287,6 @@ const Step1Content = ({ campaignData, updateCampaignData, onNext, editingCampaig
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               Google Doc URL
-            </button>
-            <button
-              onClick={() => setInputMethod('ai')}
-              className={`${
-                inputMethod === 'ai'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2`}
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-              AI Generate
             </button>
           </nav>
         </div>
@@ -352,21 +353,24 @@ const Step1Content = ({ campaignData, updateCampaignData, onNext, editingCampaig
                   dangerouslySetInnerHTML={{ __html: body }}
                 />
               ) : (
-                <div
-                  ref={(el) => {
-                    editorRef.current = el;
-                    if (el && body && el.innerHTML !== body) {
-                      el.innerHTML = body;
-                    }
-                  }}
-                  contentEditable
-                  onInput={handleEditorChange}
-                  onBlur={handleEditorChange}
-                  className="w-full min-h-[300px] p-4 border border-gray-300 rounded-b-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white overflow-auto"
-                  style={{ outline: 'none' }}
-                  data-placeholder="Start typing your email content here..."
-                  suppressContentEditableWarning={true}
-                />
+                <>
+                  <div
+                    ref={(el) => {
+                      editorRef.current = el;
+                      if (el && body && el.innerHTML !== body) {
+                        el.innerHTML = body;
+                      }
+                    }}
+                    contentEditable
+                    onInput={handleEditorChange}
+                    onBlur={handleEditorChange}
+                    className="w-full min-h-[300px] p-4 border border-gray-300 rounded-b-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white overflow-auto"
+                    style={{ outline: 'none' }}
+                    data-placeholder="Start typing your email content here..."
+                    suppressContentEditableWarning={true}
+                  />
+                  <p className="mt-2 text-sm text-gray-500 text-center">Start Editing - Click above to customize your email content</p>
+                </>
               )}
             </div>
           </div>

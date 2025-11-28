@@ -1,4 +1,5 @@
 import EmailCampaign from '../models/EmailCampaign.js';
+import User from '../models/User.js';
 import axios from 'axios';
 import { sendEmail, isEmailConfigured } from '../utils/emailService.js';
 import nodemailer from 'nodemailer';
@@ -551,6 +552,9 @@ Important:
 - The body should be well-formatted HTML with inline styles
 - Use a clean, professional design with proper spacing
 - Keep the tone professional yet engaging
+- DO NOT include any buttons or button elements in the HTML
+- DO NOT include any images, img tags, or image references
+- Use text-based content only with proper formatting and styling
 - Return ONLY valid JSON, no additional text`,
               },
             ],
@@ -986,6 +990,16 @@ export const sendTestEmail = async (req, res) => {
       });
     }
 
+    // Increment test emails count
+    await User.findOneAndUpdate(
+      { uid: userId },
+      {
+        $inc: { 'emailStats.testEmailsSent': 1 },
+        $set: { updatedAt: new Date() }
+      },
+      { upsert: true }
+    );
+
     res.json({
       success: true,
       message: "Test email sent successfully",
@@ -995,6 +1009,51 @@ export const sendTestEmail = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || "Failed to send test email",
+    });
+  }
+};
+
+// Get user's email statistics
+export const getEmailStats = async (req, res) => {
+  try {
+    const userId = req.user?.uid;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+    }
+
+    const user = await User.findOne({ uid: userId });
+
+    if (!user) {
+      // Return default stats if user not found
+      return res.json({
+        success: true,
+        stats: {
+          testEmailsSent: 0,
+          campaignEmailsSent: 0,
+          totalEmailsSent: 0
+        }
+      });
+    }
+
+    const stats = {
+      testEmailsSent: user.emailStats?.testEmailsSent || 0,
+      campaignEmailsSent: user.emailStats?.campaignEmailsSent || 0,
+      totalEmailsSent: (user.emailStats?.testEmailsSent || 0) + (user.emailStats?.campaignEmailsSent || 0)
+    };
+
+    res.json({
+      success: true,
+      stats
+    });
+  } catch (error) {
+    console.error("Error getting email stats:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to get email stats",
     });
   }
 };
@@ -1070,6 +1129,18 @@ export const createAndSendCampaign = async (req, res) => {
     campaign.sentCount = sentCount;
     campaign.status = sentCount === recipients.length ? "sent" : "partial";
     await campaign.save();
+
+    // Increment campaign emails count by the number of emails sent
+    if (sentCount > 0) {
+      await User.findOneAndUpdate(
+        { uid: userId },
+        {
+          $inc: { 'emailStats.campaignEmailsSent': sentCount },
+          $set: { updatedAt: new Date() }
+        },
+        { upsert: true }
+      );
+    }
 
     res.json({
       success: true,

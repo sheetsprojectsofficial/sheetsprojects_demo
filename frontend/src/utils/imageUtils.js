@@ -66,9 +66,10 @@ export const convertImageUrl = (url) => {
   // Handle Google Drive URLs - use the most reliable format
   const fileId = extractGoogleDriveFileId(url);
   if (fileId) {
-    
-    // Use the most reliable format for public images
-    const convertedUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
+    // Use lh3.googleusercontent.com for better compatibility and embedding
+    // This format works better with CORS and various browsers
+    const convertedUrl = `https://lh3.googleusercontent.com/d/${fileId}`;
+    console.log('Converted Google Drive URL:', url, 'to:', convertedUrl);
     return convertedUrl;
   }
 
@@ -170,15 +171,26 @@ export const isGoogleDriveUrl = (url) => {
  * @returns {string} Optimized image URL
  */
 export const optimizeImageUrl = (url, options = {}) => {
-  if (!isGoogleDriveUrl(url)) return url;
-  
+  // First convert the URL using convertImageUrl to handle all URL types
+  const convertedUrl = convertImageUrl(url);
+  if (!convertedUrl) return url;
+
+  // Only optimize if it's a Google Drive URL
+  if (!isGoogleDriveUrl(url)) return convertedUrl;
+
   const fileId = extractGoogleDriveFileId(url);
-  if (!fileId) return url;
-  
+  if (!fileId) return convertedUrl;
+
   const { width = 1000, height = 600, smartCrop = true } = options;
-  const cropParam = smartCrop ? 'p' : '';
+
+  // If smartCrop is false, just return the basic converted URL without size constraints
+  if (!smartCrop) {
+    return `https://lh3.googleusercontent.com/d/${fileId}`;
+  }
+
+  const cropParam = 'p'; // Smart crop
   const sizeParam = `w${width}-h${height}`;
-  
+
   return `https://lh3.googleusercontent.com/d/${fileId}=${sizeParam}-${cropParam}-k-no-nu`;
 };
 

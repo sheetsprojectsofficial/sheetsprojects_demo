@@ -146,31 +146,8 @@ const Step2EmailConfig = ({ campaignData, updateCampaignData, onNext, onPrevious
     <div>
       <h2 className="text-2xl font-bold text-gray-900 mb-2">Configure Email Settings</h2>
       <p className="text-gray-600 mb-6">
-        Set up your Gmail account to send emails. You'll need an App Password for security.
+        Currently we are using our own Gmail, but later on you have to change it to yours for sending emails.
       </p>
-
-      {/* Instructions Card */}
-      <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <h4 className="font-semibold text-blue-900 mb-2">How to get Gmail App Password:</h4>
-        <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
-          <li>Go to your Google Account settings</li>
-          <li>Select Security - 2-Step Verification (enable if not already)</li>
-          <li>Select App Passwords</li>
-          <li>Generate a new app password for "Mail"</li>
-          <li>Copy the 16-character password and paste it below</li>
-        </ol>
-        <a
-          href="https://myaccount.google.com/apppasswords"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 mt-3 text-sm text-blue-600 hover:text-blue-800 font-medium"
-        >
-          Open App Password Settings
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-          </svg>
-        </a>
-      </div>
 
       {/* Form */}
       <div className="space-y-6">
@@ -221,6 +198,29 @@ const Step2EmailConfig = ({ campaignData, updateCampaignData, onNext, onPrevious
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             autoComplete="new-password"
           />
+        </div>
+
+        {/* Instructions Card */}
+        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <h4 className="font-semibold text-blue-900 mb-2">How to get Gmail App Password:</h4>
+          <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+            <li>Go to your Google Account settings</li>
+            <li>Select Security - 2-Step Verification (enable if not already)</li>
+            <li>Select App Passwords</li>
+            <li>Generate a new app password for "Mail"</li>
+            <li>Copy the 16-character password and paste it below</li>
+          </ol>
+          <a
+            href="https://myaccount.google.com/apppasswords"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 mt-3 text-sm text-blue-600 hover:text-blue-800 font-medium"
+          >
+            Open App Password Settings
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </a>
         </div>
 
         <button

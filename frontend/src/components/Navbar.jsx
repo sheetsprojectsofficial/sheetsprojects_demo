@@ -193,22 +193,24 @@ const Navbar = () => {
             <Link to="/" className="flex items-center group">
               {logoUrl ? (
                 <div className="w-8 h-8 sm:w-10 sm:h-10 mr-2 sm:mr-3 flex items-center justify-center">
-                  <img 
-                    src={logoUrl} 
-                    alt={brandName || 'Logo'} 
+                  <img
+                    src={logoUrl}
+                    alt={brandName || 'Logo'}
                     className="w-full h-full object-contain rounded-md transition-transform duration-200 group-hover:scale-105"
-                    crossOrigin="anonymous"
                     loading="lazy"
+                    referrerPolicy="no-referrer"
                     onError={(e) => {
+                      console.error('Logo failed to load:', logoUrl);
+                      console.error('Error details:', e);
                       e.target.style.display = 'none';
                       e.target.nextSibling.style.display = 'flex';
                     }}
                   />
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-md items-center justify-center transition-colors duration-200 hidden" 
-                       style={{ 
-                         backgroundColor: 'var(--brand-primary)', 
-                         '&:hover': { backgroundColor: 'color-mix(in srgb, var(--brand-primary) 80%, black)' } 
-                       }} 
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-md items-center justify-center transition-colors duration-200 hidden"
+                       style={{
+                         backgroundColor: 'var(--brand-primary)',
+                         '&:hover': { backgroundColor: 'color-mix(in srgb, var(--brand-primary) 80%, black)' }
+                       }}
                        onMouseEnter={(e) => e.target.style.backgroundColor = 'color-mix(in srgb, var(--brand-primary) 80%, black)'}
                        onMouseLeave={(e) => e.target.style.backgroundColor = 'var(--brand-primary)'}>
                     <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="currentColor" viewBox="0 0 20 20">

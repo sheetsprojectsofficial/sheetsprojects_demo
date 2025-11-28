@@ -103,7 +103,48 @@ const Step5Preview = ({ campaignData, updateCampaignData, onPrevious, onComplete
     }
   };
 
-  const handleCreateCampaign = async () => {
+  const handleUpdateCampaign = async () => {
+    if (recipientCount === 0) {
+      toast.error('Please enter at least one valid email address');
+      return;
+    }
+
+    setSending(true);
+
+    try {
+      const token = await getToken();
+      const response = await axios.put(
+        `${API_BASE_URL}/email-campaigns/${editingCampaign._id}`,
+        {
+          name: campaignData.campaignName || campaignData.subject,
+          docContent: campaignData.body,
+          recipients: recipientList.map(email => ({
+            name: email.split('@')[0],
+            email: email,
+            subject: campaignData.subject,
+            sent: false
+          }))
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (response.data.success) {
+        toast.success('Campaign updated successfully!');
+        setTimeout(() => {
+          if (onComplete) {
+            onComplete();
+          }
+        }, 1000);
+      }
+    } catch (error) {
+      console.error('Error updating campaign:', error);
+      toast.error(error.response?.data?.message || 'Failed to update campaign');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleSendEmails = async () => {
     if (recipientCount === 0) {
       toast.error('Please enter at least one valid email address');
       return;
@@ -114,59 +155,88 @@ const Step5Preview = ({ campaignData, updateCampaignData, onPrevious, onComplete
     try {
       const token = await getToken();
 
-      if (editingCampaign) {
-        const response = await axios.put(
-          `${API_BASE_URL}/email-campaigns/${editingCampaign._id}`,
-          {
-            name: campaignData.campaignName || campaignData.subject,
-            docContent: campaignData.body,
-            recipients: recipientList.map(email => ({
-              name: email.split('@')[0],
-              email: email,
-              subject: campaignData.subject,
-              sent: false
-            }))
-          },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        if (response.data.success) {
-          toast.success('Campaign updated successfully!');
-          setCampaignCreated(true);
-
-          setTimeout(() => {
-            if (onComplete) {
-              onComplete();
-            }
-          }, 2000);
-        }
-      } else {
-        const response = await axios.post(
-          `${API_BASE_URL}/email-campaigns/create-and-send`,
-          {
-            name: campaignData.campaignName,
+      // First update the campaign
+      await axios.put(
+        `${API_BASE_URL}/email-campaigns/${editingCampaign._id}`,
+        {
+          name: campaignData.campaignName || campaignData.subject,
+          docContent: campaignData.body,
+          recipients: recipientList.map(email => ({
+            name: email.split('@')[0],
+            email: email,
             subject: campaignData.subject,
-            body: campaignData.body,
-            recipients: recipientList,
-            attachments: campaignData.attachments
-          },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+            sent: false
+          }))
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
-        if (response.data.success) {
-          toast.success(`Campaign created! Sent ${response.data.campaign.sentCount}/${response.data.campaign.totalRecipients} emails.`);
-          setCampaignCreated(true);
+      // Then send emails
+      const response = await axios.post(
+        `${API_BASE_URL}/email-campaigns/create-and-send`,
+        {
+          name: campaignData.campaignName,
+          subject: campaignData.subject,
+          body: campaignData.body,
+          recipients: recipientList,
+          attachments: campaignData.attachments
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
-          setTimeout(() => {
-            if (onComplete) {
-              onComplete();
-            }
-          }, 3000);
-        }
+      if (response.data.success) {
+        toast.success(`Emails sent! ${response.data.campaign.sentCount}/${response.data.campaign.totalRecipients} delivered.`);
+        setCampaignCreated(true);
+
+        setTimeout(() => {
+          if (onComplete) {
+            onComplete();
+          }
+        }, 3000);
       }
     } catch (error) {
-      console.error('Error with campaign:', error);
-      toast.error(error.response?.data?.message || `Failed to ${editingCampaign ? 'update' : 'create'} campaign`);
+      console.error('Error sending emails:', error);
+      toast.error(error.response?.data?.message || 'Failed to send emails');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleCreateCampaign = async () => {
+    if (recipientCount === 0) {
+      toast.error('Please enter at least one valid email address');
+      return;
+    }
+
+    setSending(true);
+
+    try {
+      const token = await getToken();
+      const response = await axios.post(
+        `${API_BASE_URL}/email-campaigns/create-and-send`,
+        {
+          name: campaignData.campaignName,
+          subject: campaignData.subject,
+          body: campaignData.body,
+          recipients: recipientList,
+          attachments: campaignData.attachments
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (response.data.success) {
+        toast.success(`Campaign created! Sent ${response.data.campaign.sentCount}/${response.data.campaign.totalRecipients} emails.`);
+        setCampaignCreated(true);
+
+        setTimeout(() => {
+          if (onComplete) {
+            onComplete();
+          }
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('Error creating campaign:', error);
+      toast.error(error.response?.data?.message || 'Failed to create campaign');
     } finally {
       setSending(false);
     }
@@ -186,9 +256,14 @@ const Step5Preview = ({ campaignData, updateCampaignData, onPrevious, onComplete
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
         </div>
-        <h2 className="text-3xl font-bold text-gray-900 mb-3">Campaign Created Successfully!</h2>
+        <h2 className="text-3xl font-bold text-gray-900 mb-3">
+          {editingCampaign ? 'Emails Sent Successfully!' : 'Campaign Created Successfully!'}
+        </h2>
         <p className="text-lg text-gray-600 mb-6">
-          Your campaign has been created and emails are being sent to {recipientCount} recipient(s).
+          {editingCampaign
+            ? `Emails have been sent to ${recipientCount} recipient(s).`
+            : `Your campaign has been created and emails are being sent to ${recipientCount} recipient(s).`
+          }
         </p>
         <div className="space-y-3">
           <p className="text-gray-700">Please check your email inbox</p>
@@ -200,60 +275,10 @@ const Step5Preview = ({ campaignData, updateCampaignData, onPrevious, onComplete
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-2">Preview & Send Campaign</h2>
+      <h2 className="text-2xl font-bold text-gray-900 mb-2">Send Campaign</h2>
       <p className="text-gray-600 mb-6">
-        Review your campaign details and add recipients to send.
+        Add recipients to send your campaign.
       </p>
-
-      {/* Campaign Preview */}
-      <div className="mb-6 p-6 bg-white border-2 border-gray-200 rounded-lg">
-        <h3 className="font-bold text-lg text-gray-900 mb-4">Campaign Preview</h3>
-
-        <div className="space-y-4">
-          <div className="pb-4 border-b">
-            <span className="text-sm font-medium text-gray-600">Campaign Name:</span>
-            <p className="text-lg font-semibold text-gray-900 mt-1">{campaignData.campaignName}</p>
-          </div>
-
-          <div className="pb-4 border-b">
-            <span className="text-sm font-medium text-gray-600">Email Subject:</span>
-            <p className="text-lg font-semibold text-gray-900 mt-1">{campaignData.subject}</p>
-          </div>
-
-          <div className="pb-4 border-b">
-            <span className="text-sm font-medium text-gray-600 block mb-2">Body:</span>
-            <div
-              className="bg-gray-50 p-4 rounded-lg max-h-64 overflow-y-auto"
-              dangerouslySetInnerHTML={{ __html: campaignData.body }}
-            />
-          </div>
-
-          {campaignData.attachments && campaignData.attachments.length > 0 && (
-            <div>
-              <span className="text-sm font-medium text-gray-600 block mb-2">
-                Attachments ({campaignData.attachments.length}):
-              </span>
-              <div className="space-y-2">
-                {campaignData.attachments.map((file, index) => (
-                  <div key={index} className="flex items-center gap-2 text-sm text-gray-700 bg-gray-50 p-2 rounded">
-                    <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <span className="flex-1">{file.name}</span>
-                    <span className="text-gray-500">({formatFileSize(file.size)})</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div>
-            <span className="text-sm font-medium text-gray-600">From:</span>
-            <p className="text-gray-900 mt-1">{campaignData.emailConfig?.email}</p>
-          </div>
-        </div>
-      </div>
-
       {/* Recipients */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
@@ -336,25 +361,69 @@ const Step5Preview = ({ campaignData, updateCampaignData, onPrevious, onComplete
           </svg>
           Previous
         </button>
-        <button
-          onClick={handleCreateCampaign}
-          disabled={sending || recipientCount === 0}
-          className="px-8 py-3 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-bold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg"
-        >
-          {sending ? (
-            <>
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-              {editingCampaign ? 'Updating...' : 'Creating & Sending...'}
-            </>
-          ) : (
-            <>
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={editingCampaign ? "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" : "M12 19l9 2-9-18-9 18 9-2zm0 0v-8"} />
-              </svg>
-              {editingCampaign ? 'Update Campaign' : 'Create & Send Campaign'}
-            </>
-          )}
-        </button>
+
+        {editingCampaign ? (
+          <div className="flex gap-3">
+            <button
+              onClick={handleUpdateCampaign}
+              disabled={sending || recipientCount === 0}
+              className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {sending ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  Updating...
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Update Campaign
+                </>
+              )}
+            </button>
+            <button
+              onClick={handleSendEmails}
+              disabled={sending || recipientCount === 0}
+              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg"
+            >
+              {sending ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  Send Email
+                </>
+              )}
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={handleCreateCampaign}
+            disabled={sending || recipientCount === 0}
+            className="px-8 py-3 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-bold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg"
+          >
+            {sending ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                Creating & Sending...
+              </>
+            ) : (
+              <>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+                Create & Send Campaign
+              </>
+            )}
+          </button>
+        )}
       </div>
     </div>
   );

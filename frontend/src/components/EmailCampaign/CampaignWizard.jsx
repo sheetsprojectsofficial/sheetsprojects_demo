@@ -53,15 +53,26 @@ const CampaignWizard = ({ onCancel, onComplete, editingCampaign, initialStep = 1
     }
   }, [editingCampaign, initialStep]);
 
-  const steps = [
+  // Show only 3 steps for new campaigns, all 5 for editing
+  const allSteps = [
     { number: 1, title: 'Content', description: 'What to write?' },
     { number: 2, title: 'Email Config', description: 'Configure email' },
     { number: 3, title: 'Test', description: campaignData.testEmailSent ? 'Test sent' : 'Test email' },
     { number: 4, title: 'Attachments', description: 'Add files (optional)' },
-    { number: 5, title: 'Preview', description: 'Review & send' }
+    { number: 5, title: 'Send', description: 'Send campaign' }
   ];
 
+  const steps = editingCampaign ? allSteps : allSteps.slice(0, 3);
+
   const handleNext = () => {
+    // For new campaigns, complete after step 3
+    if (!editingCampaign && currentStep === 3) {
+      if (onComplete) {
+        onComplete();
+      }
+      return;
+    }
+
     // If test email was sent, skip step 3
     if (campaignData.testEmailSent && currentStep === 2) {
       setCurrentStep(4);
@@ -120,7 +131,7 @@ const CampaignWizard = ({ onCancel, onComplete, editingCampaign, initialStep = 1
             <div className="absolute top-5 left-0 right-0 h-1 bg-gray-200">
               <div
                 className="h-full bg-blue-600 transition-all duration-300"
-                style={{ width: `${((currentStep - 1) / 4) * 100}%` }}
+                style={{ width: `${((currentStep - 1) / (steps.length - 1)) * 100}%` }}
               />
             </div>
 
@@ -175,6 +186,7 @@ const CampaignWizard = ({ onCancel, onComplete, editingCampaign, initialStep = 1
               updateCampaignData={updateCampaignData}
               onNext={handleNext}
               onPrevious={handlePrevious}
+              editingCampaign={editingCampaign}
             />
           )}
 
