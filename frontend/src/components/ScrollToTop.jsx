@@ -4,76 +4,40 @@ import { useLocation } from 'react-router-dom';
 const ScrollToTop = () => {
   const { pathname } = useLocation();
 
+  // Disable browser's automatic scroll restoration
   useEffect(() => {
-    // Enhanced smooth scroll to top when pathname changes (navigation)
-    const scrollToTop = () => {
-      // Use requestAnimationFrame for smoother animation
-      requestAnimationFrame(() => {
-        window.scrollTo({
-          top: 0,
-          left: 0,
-          behavior: 'smooth'
-        });
-      });
-    };
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+  }, []);
 
-    // Add a small delay to ensure the new page content is rendered
-    const timeoutId = setTimeout(scrollToTop, 100);
+  useEffect(() => {
+    // Save the current scroll behavior
+    const originalScrollBehavior = document.documentElement.style.scrollBehavior;
 
-    return () => clearTimeout(timeoutId);
+    // Temporarily disable smooth scrolling to force instant scroll
+    document.documentElement.style.scrollBehavior = 'auto';
+    document.body.style.scrollBehavior = 'auto';
+
+    // Force scroll to top immediately using multiple methods
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+
+    // Also use scrollIntoView on the root element as a fallback
+    const root = document.getElementById('root');
+    if (root) {
+      root.scrollIntoView({ block: 'start', behavior: 'auto' });
+    }
+
+    // Restore the original scroll behavior after a brief moment
+    setTimeout(() => {
+      document.documentElement.style.scrollBehavior = originalScrollBehavior;
+      document.body.style.scrollBehavior = originalScrollBehavior;
+    }, 100);
   }, [pathname]);
-
-  useEffect(() => {
-    // Handle page reload - scroll to top smoothly
-    const handleBeforeUnload = () => {
-      // Store scroll position before reload
-      sessionStorage.setItem('scrollPosition', window.scrollY.toString());
-    };
-
-    const handleLoad = () => {
-      // Check if we're coming from a reload
-      const scrollPosition = sessionStorage.getItem('scrollPosition');
-      if (scrollPosition) {
-        // Clear the stored position
-        sessionStorage.removeItem('scrollPosition');
-        
-        // Smooth scroll to top after a brief delay
-        setTimeout(() => {
-          window.scrollTo({
-            top: 0,
-            left: 0,
-            behavior: 'smooth'
-          });
-        }, 150);
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    window.addEventListener('load', handleLoad);
-
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      window.removeEventListener('load', handleLoad);
-    };
-  }, []);
-
-  // Additional effect to handle hash changes and ensure smooth scrolling
-  useEffect(() => {
-    const handleHashChange = () => {
-      setTimeout(() => {
-        window.scrollTo({
-          top: 0,
-          left: 0,
-          behavior: 'smooth'
-        });
-      }, 100);
-    };
-
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
 
   return null;
 };
 
-export default ScrollToTop; 
+export default ScrollToTop;

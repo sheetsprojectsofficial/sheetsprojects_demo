@@ -1,8 +1,13 @@
 import EmailCampaign from '../models/EmailCampaign.js';
 import User from '../models/User.js';
+import CRM from '../models/CRM.js';
 import axios from 'axios';
 import { sendEmail, isEmailConfigured } from '../utils/emailService.js';
 import nodemailer from 'nodemailer';
+import cloudinary from '../config/cloudinary.js';
+import fs from 'fs/promises';
+import path from 'path';
+import os from 'os';
 
 // Get next campaign number for naming (Untitled0, Untitled1, etc.)
 export const getNextCampaignNumber = async (req, res) => {
@@ -945,6 +950,553 @@ If no valid email is found, return exactly: NONE`
     res.status(500).json({
       success: false,
       message: "Failed to extract email from the image. Please try again with a clearer image.",
+    });
+  }
+};
+
+// Extract all data from visiting card and store in CRM
+export const extractAndStoreCRMData = async (req, res) => {
+  try {
+    const { image } = req.body;
+    const userId = req.user?.uid;
+
+    if (!image) {
+      return res.status(400).json({
+        success: false,
+        message: "Image is required",
+      });
+    }
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+    }
+
+    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
+    if (!GEMINI_API_KEY || GEMINI_API_KEY === "your-gemini-api-key-here") {
+      return res.status(500).json({
+        success: false,
+        message: "Gemini API key is not configured.",
+      });
+    }
+
+    // Extract base64 data from data URL
+    const base64Match = image.match(/^data:image\/(\w+);base64,(.+)$/);
+    if (!base64Match) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid image format. Please provide a valid base64 image.",
+      });
+    }
+
+    const mimeType = `image/${base64Match[1]}`;
+    const base64Data = base64Match[2];
+
+    let extractedData = {
+      companyName: 'N/A',
+      contactPerson: 'N/A',
+      designation: 'N/A',
+      mobileNumber: 'N/A',
+      landline: 'N/A',
+      email: 'N/A'
+    };
+
+    let emails = [];
+
+    try {
+      console.log("[CRM] Attempting full data extraction with Gemini Vision...");
+
+      // Extract all data from visiting card
+      const dataResponse = await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          contents: [
+            {
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: mimeType,
+                    data: base64Data
+                  }
+                },
+                {
+                  text: `You are a business card data extraction system. Extract the following information from this business card image:
+
+1. Company Name (organization/company name)
+2. Contact Person (person's name)
+3. Designation (job title/position)
+4. Mobile Number (mobile/cell phone number)
+5. Landline (office/landline phone number)
+6. Email (email address)
+
+Return the data in this EXACT JSON format (use "N/A" if any field is not found):
+{
+  "companyName": "value or N/A",
+  "contactPerson": "value or N/A",
+  "designation": "value or N/A",
+  "mobileNumber": "value or N/A",
+  "landline": "value or N/A",
+  "email": "value or N/A"
+}
+
+Important:
+- For phone numbers, preserve the format exactly as shown (including country codes, hyphens, spaces)
+- If you see multiple phone numbers, identify which is mobile and which is landline based on context/labels
+- If there's only one phone number and it's unclear, put it in mobileNumber
+- Extract email in lowercase
+- Return ONLY the JSON, no additional text`
+                }
+              ],
+            },
+          ],
+          generationConfig: {
+            temperature: 0,
+            maxOutputTokens: 1000,
+          },
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+          timeout: 30000,
+        }
+      );
+
+      const extractedText = dataResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      console.log("[CRM] Extracted text:", extractedText);
+
+      if (extractedText) {
+        // Parse JSON from response
+        try {
+          // Remove markdown code blocks if present
+          let jsonText = extractedText.trim();
+          if (jsonText.startsWith('```json')) {
+            jsonText = jsonText.replace(/```json\s*/g, '').replace(/```\s*$/g, '');
+          } else if (jsonText.startsWith('```')) {
+            jsonText = jsonText.replace(/```\s*/g, '').replace(/```\s*$/g, '');
+          }
+
+          const parsedData = JSON.parse(jsonText);
+
+          // Merge with default values
+          extractedData = {
+            companyName: parsedData.companyName || 'N/A',
+            contactPerson: parsedData.contactPerson || 'N/A',
+            designation: parsedData.designation || 'N/A',
+            mobileNumber: parsedData.mobileNumber || 'N/A',
+            landline: parsedData.landline || 'N/A',
+            email: parsedData.email || 'N/A'
+          };
+
+          // Clean up email
+          if (extractedData.email !== 'N/A') {
+            extractedData.email = extractedData.email.toLowerCase().trim();
+          }
+
+          console.log("[CRM] Parsed data:", extractedData);
+        } catch (parseError) {
+          console.error("[CRM] Failed to parse JSON:", parseError.message);
+
+          // Fallback: Try to extract data using regex from raw text
+          const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi;
+          const emailMatches = extractedText.match(emailRegex);
+
+          if (emailMatches && emailMatches.length > 0) {
+            extractedData.email = emailMatches[0].toLowerCase().trim();
+          }
+        }
+      }
+    } catch (geminiError) {
+      console.error("[CRM] Gemini Vision failed:", geminiError.response?.data || geminiError.message);
+
+      return res.status(500).json({
+        success: false,
+        message: "Failed to extract data from visiting card. Please try again with a clearer image.",
+      });
+    }
+
+    // Extract emails for recipients list (can be multiple)
+    const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi;
+    if (extractedData.email !== 'N/A') {
+      emails = [extractedData.email];
+    }
+
+    // Validate that we have at least an email before storing in CRM
+    if (extractedData.email === 'N/A' || !extractedData.email) {
+      return res.json({
+        success: true,
+        emails: [],
+        crmData: null,
+        message: "No email found in the visiting card. Data not stored in CRM.",
+      });
+    }
+
+    // Upload image to Cloudinary
+    let cardImageUrl = null;
+    let cardImagePublicId = null;
+
+    try {
+      console.log("[CRM] Uploading visiting card image to Cloudinary...");
+
+      // Create a temporary file from base64
+      const base64Data = base64Match[2];
+      const imageBuffer = Buffer.from(base64Data, 'base64');
+      const tempFilePath = path.join(os.tmpdir(), `visiting-card-${Date.now()}.${base64Match[1]}`);
+
+      await fs.writeFile(tempFilePath, imageBuffer);
+
+      // Upload to Cloudinary
+      const uploadResult = await cloudinary.uploader.upload(tempFilePath, {
+        folder: 'visiting-cards',
+        use_filename: false,
+        unique_filename: true,
+        overwrite: false,
+        resource_type: 'auto'
+      });
+
+      cardImageUrl = uploadResult.secure_url;
+      cardImagePublicId = uploadResult.public_id;
+
+      // Clean up temp file
+      await fs.unlink(tempFilePath);
+
+      console.log("[CRM] Image uploaded to Cloudinary:", cardImageUrl);
+    } catch (uploadError) {
+      console.error("[CRM] Failed to upload image to Cloudinary:", uploadError.message);
+      // Continue without image if upload fails
+    }
+
+    // Store in CRM database (with deduplication)
+    try {
+      // Check if this email already exists for this user
+      const existingEntry = await CRM.findOne({
+        email: extractedData.email,
+        createdBy: userId
+      });
+
+      let crmEntry;
+
+      if (existingEntry) {
+        console.log("[CRM] Duplicate entry found, updating existing record");
+
+        // Update existing entry with new data (if fields were N/A before)
+        existingEntry.companyName = extractedData.companyName !== 'N/A' ? extractedData.companyName : existingEntry.companyName;
+        existingEntry.contactPerson = extractedData.contactPerson !== 'N/A' ? extractedData.contactPerson : existingEntry.contactPerson;
+        existingEntry.designation = extractedData.designation !== 'N/A' ? extractedData.designation : existingEntry.designation;
+        existingEntry.mobileNumber = extractedData.mobileNumber !== 'N/A' ? extractedData.mobileNumber : existingEntry.mobileNumber;
+        existingEntry.landline = extractedData.landline !== 'N/A' ? extractedData.landline : existingEntry.landline;
+
+        // Update image if new one was uploaded
+        if (cardImageUrl) {
+          // Delete old image from Cloudinary if exists
+          if (existingEntry.cardImagePublicId) {
+            try {
+              await cloudinary.uploader.destroy(existingEntry.cardImagePublicId);
+            } catch (deleteError) {
+              console.error("[CRM] Failed to delete old image:", deleteError.message);
+            }
+          }
+          existingEntry.cardImageUrl = cardImageUrl;
+          existingEntry.cardImagePublicId = cardImagePublicId;
+        }
+
+        crmEntry = await existingEntry.save();
+      } else {
+        console.log("[CRM] Creating new CRM entry");
+
+        crmEntry = await CRM.create({
+          ...extractedData,
+          createdBy: userId,
+          cardImageUrl,
+          cardImagePublicId
+        });
+      }
+
+      console.log("[CRM] Data stored successfully:", crmEntry._id);
+
+      res.json({
+        success: true,
+        emails: emails,
+        crmData: {
+          companyName: crmEntry.companyName,
+          contactPerson: crmEntry.contactPerson,
+          designation: crmEntry.designation,
+          mobileNumber: crmEntry.mobileNumber,
+          landline: crmEntry.landline,
+          email: crmEntry.email,
+        },
+        isDuplicate: !!existingEntry,
+        message: existingEntry ? "Visiting card data updated in CRM" : "Visiting card data stored in CRM successfully",
+      });
+
+    } catch (dbError) {
+      console.error("[CRM] Database error:", dbError);
+
+      // If it's a duplicate key error, return the emails anyway
+      if (dbError.code === 11000) {
+        return res.json({
+          success: true,
+          emails: emails,
+          crmData: extractedData,
+          isDuplicate: true,
+          message: "This contact already exists in CRM",
+        });
+      }
+
+      throw dbError;
+    }
+
+  } catch (error) {
+    console.error("[CRM] Error extracting and storing CRM data:", error.message);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to process visiting card. Please try again.",
+    });
+  }
+};
+
+// Get all CRM entries for a user
+export const getCRMEntries = async (req, res) => {
+  try {
+    const userId = req.user?.uid;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+    }
+
+    const entries = await CRM.find({ createdBy: userId })
+      .sort({ createdAt: -1 }); // Most recent first
+
+    res.json({
+      success: true,
+      data: entries,
+      count: entries.length,
+    });
+
+  } catch (error) {
+    console.error("[CRM] Error fetching CRM entries:", error.message);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch CRM entries",
+    });
+  }
+};
+
+// Create CRM entry manually
+export const createCRMEntry = async (req, res) => {
+  try {
+    const userId = req.user?.uid;
+    const {
+      companyName, contactPerson, designation, mobileNumber, landline, email,
+      what, pitch, statusDate, statusUpdate, nextFollowupDate, demoDate, demoDone, comments
+    } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+    }
+
+    // Email is required
+    if (!email || !email.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
+    }
+
+    // Validate email format
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid email format",
+      });
+    }
+
+    // Check if email already exists for this user
+    const existingEntry = await CRM.findOne({
+      email: email.toLowerCase().trim(),
+      createdBy: userId
+    });
+
+    if (existingEntry) {
+      return res.status(400).json({
+        success: false,
+        message: "A contact with this email already exists",
+      });
+    }
+
+    // Create new entry
+    const newEntry = await CRM.create({
+      companyName: companyName?.trim() || 'N/A',
+      contactPerson: contactPerson?.trim() || 'N/A',
+      designation: designation?.trim() || 'N/A',
+      mobileNumber: mobileNumber?.trim() || 'N/A',
+      landline: landline?.trim() || 'N/A',
+      email: email.toLowerCase().trim(),
+      what: what?.trim() || 'N/A',
+      pitch: pitch?.trim() || 'N/A',
+      statusDate: statusDate || null,
+      statusUpdate: statusUpdate?.trim() || 'N/A',
+      nextFollowupDate: nextFollowupDate || null,
+      demoDate: demoDate || null,
+      demoDone: demoDone?.trim() || 'N/A',
+      comments: comments?.trim() || 'N/A',
+      createdBy: userId,
+    });
+
+    console.log("[CRM] New entry created manually:", newEntry._id);
+
+    res.status(201).json({
+      success: true,
+      message: "Contact created successfully",
+      data: newEntry,
+    });
+
+  } catch (error) {
+    console.error("[CRM] Error creating CRM entry:", error.message);
+
+    // Handle duplicate email error
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: "A contact with this email already exists",
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to create CRM entry",
+    });
+  }
+};
+
+// Update CRM entry
+export const updateCRMEntry = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.uid;
+    const {
+      companyName, contactPerson, designation, mobileNumber, landline, email,
+      what, pitch, statusDate, statusUpdate, nextFollowupDate, demoDate, demoDone, comments
+    } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+    }
+
+    // Validate email format
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid email format",
+      });
+    }
+
+    const updateData = {};
+    if (companyName !== undefined) updateData.companyName = companyName || 'N/A';
+    if (contactPerson !== undefined) updateData.contactPerson = contactPerson || 'N/A';
+    if (designation !== undefined) updateData.designation = designation || 'N/A';
+    if (mobileNumber !== undefined) updateData.mobileNumber = mobileNumber || 'N/A';
+    if (landline !== undefined) updateData.landline = landline || 'N/A';
+    if (email !== undefined) updateData.email = email.toLowerCase().trim();
+    if (what !== undefined) updateData.what = what || 'N/A';
+    if (pitch !== undefined) updateData.pitch = pitch || 'N/A';
+    if (statusDate !== undefined) updateData.statusDate = statusDate || null;
+    if (statusUpdate !== undefined) updateData.statusUpdate = statusUpdate || 'N/A';
+    if (nextFollowupDate !== undefined) updateData.nextFollowupDate = nextFollowupDate || null;
+    if (demoDate !== undefined) updateData.demoDate = demoDate || null;
+    if (demoDone !== undefined) updateData.demoDone = demoDone || 'N/A';
+    if (comments !== undefined) updateData.comments = comments || 'N/A';
+
+    const entry = await CRM.findOneAndUpdate(
+      {
+        _id: id,
+        createdBy: userId // Ensure user can only update their own entries
+      },
+      updateData,
+      { new: true } // Return updated document
+    );
+
+    if (!entry) {
+      return res.status(404).json({
+        success: false,
+        message: "CRM entry not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "CRM entry updated successfully",
+      data: entry,
+    });
+
+  } catch (error) {
+    console.error("[CRM] Error updating CRM entry:", error.message);
+
+    // Handle duplicate email error
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: "A contact with this email already exists",
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to update CRM entry",
+    });
+  }
+};
+
+// Delete CRM entry
+export const deleteCRMEntry = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.uid;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+    }
+
+    const entry = await CRM.findOneAndDelete({
+      _id: id,
+      createdBy: userId // Ensure user can only delete their own entries
+    });
+
+    if (!entry) {
+      return res.status(404).json({
+        success: false,
+        message: "CRM entry not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "CRM entry deleted successfully",
+    });
+
+  } catch (error) {
+    console.error("[CRM] Error deleting CRM entry:", error.message);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete CRM entry",
     });
   }
 };

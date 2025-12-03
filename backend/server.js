@@ -68,7 +68,7 @@ app.use("*", (req, res) => {
 // Import sync service to start periodic sync
 import syncService from './services/syncService.js';
 
-app.listen(PORT, async () => {
+app.listen(PORT, "0.0.0.0", async () => {
   console.log(`Server running on port ${PORT}`);
   
   // Start periodic sync on server startup

@@ -12,7 +12,7 @@ import SubNavbar from './SubNavbar';
 const Navbar = () => {
   const { navigationItems } = useContext(NavigationContext);
   const { settings, getSettingValue } = useSettings();
-  const { isAuthenticated, logout, user, isAdmin } = useAuth();
+  const { isAuthenticated, logout, user, isAdmin, loginWithGoogle } = useAuth();
   const { cart } = useCart();
   const { brandName: contextBrandName } = useBrand();
   const { getThemeClasses } = useTheme();
@@ -35,8 +35,18 @@ const Navbar = () => {
   const dropdownRef = useRef(null);
   const navDropdownRef = useRef(null);
 
-  const handleLoginClick = () => {
-    navigate('/login');
+  const handleLoginClick = async () => {
+    try {
+      const result = await loginWithGoogle();
+      if (result.success) {
+        navigate('/dashboard');
+      } else {
+        console.error('Login failed:', result.error);
+        // Optionally show error to user
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+    }
   };
 
   const handleLogoutClick = async () => {

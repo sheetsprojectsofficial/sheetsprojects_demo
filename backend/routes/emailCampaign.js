@@ -15,7 +15,12 @@ import {
   sendTestEmail,
   createAndSendCampaign,
   checkEmailConfigStatus,
-  getEmailStats
+  getEmailStats,
+  extractAndStoreCRMData,
+  getCRMEntries,
+  createCRMEntry,
+  updateCRMEntry,
+  deleteCRMEntry
 } from '../controllers/emailCampaignController.js';
 import { requireAuth, verifyToken } from '../middleware/auth.js';
 
@@ -31,6 +36,13 @@ router.post('/fetch-doc', fetchDocContent);
 router.post('/generate-content', generateContent);
 router.post('/generate-subject', generateSubject);
 router.post('/extract-email-from-card', extractEmailFromCard);
+
+// CRM endpoints (require authentication)
+router.post('/extract-and-store-crm', verifyToken, extractAndStoreCRMData);
+router.get('/crm-entries', verifyToken, getCRMEntries);
+router.post('/crm-entries', verifyToken, createCRMEntry);
+router.put('/crm-entries/:id', verifyToken, updateCRMEntry);
+router.delete('/crm-entries/:id', verifyToken, deleteCRMEntry);
 
 // Test email and create-and-send require authentication
 router.post('/send-test', verifyToken, sendTestEmail);

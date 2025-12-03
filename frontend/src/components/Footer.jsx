@@ -175,10 +175,16 @@ const Footer = () => {
             )}
             
             {/* Social Media Icons - positioned on the far right */}
-            {footerData.socialMedia?.enabled && footerData.socialMedia?.links && (
+            {footerData.socialMedia?.enabled && footerData.socialMedia?.links && Object.keys(footerData.socialMedia.links).length > 0 && (
               <div className="flex space-x-4">
                 {Object.entries(footerData.socialMedia.links).map(([platform, data]) => {
-                  if (!data.enabled || !data.url) return null;
+                  // Skip if data is invalid or URL is missing
+                  if (!data || !data.enabled || !data.url) {
+                    if (data) {
+                      console.log(`Skipping ${platform}: enabled=${data.enabled}, url=${data.url}`);
+                    }
+                    return null;
+                  }
                   
                   const brandColors = {
                     facebook: 'text-blue-500 hover:text-blue-400',
@@ -194,8 +200,9 @@ const Footer = () => {
                       href={data.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={`transition-colors duration-200 ${brandColors[platform] || 'text-gray-300 hover:text-white'}`}
+                      className={`cursor-pointer transition-colors duration-200 ${brandColors[platform] || 'text-gray-300 hover:text-white'}`}
                       title={platform.charAt(0).toUpperCase() + platform.slice(1)}
+                      aria-label={`Visit our ${platform} page`}
                     >
                       {renderSocialIcon(platform)}
                     </a>

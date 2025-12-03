@@ -50,6 +50,11 @@ const Step5Preview = ({ campaignData, updateCampaignData, onPrevious, onComplete
 
     const allExtractedEmails = [];
     let processedCount = 0;
+    let crmStoredCount = 0;
+    let duplicateCount = 0;
+
+    // Get auth token for CRM storage
+    const token = await getToken();
 
     for (const file of files) {
       try {
@@ -63,19 +68,39 @@ const Step5Preview = ({ campaignData, updateCampaignData, onPrevious, onComplete
         setPreviewImage(base64Image);
 
         try {
-          const response = await axios.post(`${API_BASE_URL}/email-campaigns/extract-email-from-card`, {
-            image: base64Image
-          });
+          // Call the new CRM extraction endpoint that extracts all data and stores it
+          const response = await axios.post(
+            `${API_BASE_URL}/email-campaigns/extract-and-store-crm`,
+            {
+              image: base64Image
+            },
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
 
           if (response.data.success && response.data.emails && response.data.emails.length > 0) {
             allExtractedEmails.push(...response.data.emails);
             processedCount++;
+
+            // Track CRM storage status
+            if (response.data.crmData) {
+              if (response.data.isDuplicate) {
+                duplicateCount++;
+              } else {
+                crmStoredCount++;
+              }
+            }
           }
         } catch (error) {
-          console.error(`Error extracting email from ${file.name}:`, error);
+          console.error(`Error extracting data from ${file.name}:`, error);
+          toast.error(error.response?.data?.message || `Failed to process ${file.name}`);
         }
       } catch (error) {
         console.error(`Error reading file ${file.name}:`, error);
+        toast.error(`Failed to read ${file.name}`);
       }
     }
 
@@ -97,7 +122,16 @@ const Step5Preview = ({ campaignData, updateCampaignData, onPrevious, onComplete
         setRecipients(uniqueEmails.join('\n'));
       }
 
-      toast.success(`Extracted ${uniqueEmails.length} email(s) from ${processedCount} card(s)`);
+      // Show comprehensive success message
+      let successMessage = `Extracted ${uniqueEmails.length} email(s) from ${processedCount} card(s).`;
+      if (crmStoredCount > 0) {
+        successMessage += ` ${crmStoredCount} new contact(s) saved to CRM.`;
+      }
+      if (duplicateCount > 0) {
+        successMessage += ` ${duplicateCount} duplicate(s) updated.`;
+      }
+
+      toast.success(successMessage);
     } else {
       toast.warning('No emails found in the uploaded image(s). Please try with clearer images.');
     }
@@ -287,24 +321,27 @@ const Step5Preview = ({ campaignData, updateCampaignData, onPrevious, onComplete
           </label>
 
           {/* Visiting Card Upload Button */}
-          <div className="flex items-center gap-2">
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleImageUpload}
-              accept="image/*"
-              multiple
-              className="hidden"
-              id="visiting-card-input"
-            />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={extractingEmail}
-              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-sm font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {extractingEmail ? 'Extracting...' : 'Scan Visiting Cards'}
-            </button>
+          <div className="flex flex-col items-end gap-1">
+            <p className="text-xs text-purple-600 font-medium">Upload only front side</p>
+            <div className="flex items-center gap-2">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImageUpload}
+                accept="image/*"
+                multiple
+                className="hidden"
+                id="visiting-card-input"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={extractingEmail}
+                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-sm font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {extractingEmail ? 'Extracting...' : 'Scan Visiting Cards'}
+              </button>
+            </div>
           </div>
         </div>
 
