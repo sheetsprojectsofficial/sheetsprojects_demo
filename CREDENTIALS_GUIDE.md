@@ -53,7 +53,7 @@ VITE_GOOGLE_DRIVE_API_KEY=
 PORT=5004
 
 # 2. MongoDB Database (Get from MongoDB Atlas)
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/?retryWrites=true&w=majority
+MONGODB_URI=
 
 # 3. Cloudinary (Image/File Storage) - Get from Cloudinary Dashboard
 CLOUDINARY_API_KEY=
