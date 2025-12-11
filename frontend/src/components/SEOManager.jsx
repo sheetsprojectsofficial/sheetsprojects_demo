@@ -113,6 +113,18 @@ const SEOManager = () => {
       description: 'Terms and conditions for using our Google Sheets automation services and website.',
       keywords: 'terms and conditions, service terms, legal',
       type: 'website'
+    },
+    '/shipping': {
+      title: 'Shipping Policy',
+      description: 'Learn about our shipping and delivery policy for digital and physical products.',
+      keywords: 'shipping policy, delivery policy, product delivery',
+      type: 'website'
+    },
+    '/cancellations-refunds': {
+      title: 'Cancellations and Refunds',
+      description: 'Our policy on order cancellations and refunds for products and services.',
+      keywords: 'cancellation policy, refund policy, returns',
+      type: 'website'
     }
   });
 

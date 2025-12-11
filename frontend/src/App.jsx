@@ -33,6 +33,8 @@ import Checkout from "./components/Checkout";
 import Cart from "./components/Cart";
 import TermsAndConditions from "./components/TermsAndConditions";
 import PrivacyPolicy from "./components/PrivacyPolicy";
+import ShippingPolicy from "./components/ShippingPolicy";
+import CancellationsRefunds from "./components/CancellationsRefunds";
 import Footer from "./components/Footer";
 import SEOManager from "./components/SEOManager";
 import ScrollToTop from "./components/ScrollToTop";
@@ -129,6 +131,14 @@ function App() {
                               <Route
                                 path="/privacy"
                                 element={<PrivacyPolicy />}
+                              />
+                              <Route
+                                path="/shipping"
+                                element={<ShippingPolicy />}
+                              />
+                              <Route
+                                path="/cancellations-refunds"
+                                element={<CancellationsRefunds />}
                               />
                               <Route
                                 path="*"
