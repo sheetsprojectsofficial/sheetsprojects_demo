@@ -10,19 +10,18 @@ const HeroSection = () => {
   const { getSettingValue } = useSettings();
   const { getThemeClasses } = useTheme();
   const navigate = useNavigate();
-  
+
   const themeClasses = getThemeClasses();
-  
+
   // Get Google Sheets values
   const heroSectionEnabled = getSettingValue('Hero Section Enabled', true);
-  const sheetsBrandName = getSettingValue('Brand Name', '') || getSettingValue('Brand name', '');
+  // Brand name now comes from BrandContext (Brand details section), not Hero section
   const sheetsHeroText = getSettingValue('Hero Text', '');
   const sheetsHeroDescription = getSettingValue('Hero Description', '');
   const sheetsButtonName = getSettingValue('Button Name', '');
   const sheetsButtonLink = getSettingValue('Button Link', '');
   const sheetsHeroImageUrl = getSettingValue('Hero Image URL', '');
 
-  // Don't render hero section if disabled in Google Sheets
   if (!heroSectionEnabled) {
     return null;
   }
@@ -41,168 +40,185 @@ const HeroSection = () => {
   };
 
   return (
-    <section className="bg-white relative overflow-hidden">
-      {/* Background decorative elements */}
-      <div className="absolute inset-0">
-        <div className="absolute top-0 left-0 w-72 h-72 rounded-full mix-blend-multiply filter blur-xl opacity-50 animate-blob" 
-             style={{ backgroundColor: 'rgba(var(--brand-primary-rgb), 0.3)' }}></div>
-        <div className="absolute top-0 right-0 w-72 h-72 rounded-full mix-blend-multiply filter blur-xl opacity-40 animate-blob animation-delay-2000" 
-             style={{ backgroundColor: 'rgba(var(--brand-primary-rgb), 0.2)' }}></div>
-        <div className="absolute -bottom-8 left-20 w-72 h-72 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-4000" 
-             style={{ backgroundColor: 'rgba(var(--brand-primary-rgb), 0.1)' }}></div>
+    <section className="relative min-h-[90vh] flex items-center overflow-hidden bg-white">
+      {/* Subtle Background Pattern */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.02)_1px,transparent_1px)] bg-[size:60px_60px]"></div>
+        {/* Brand color accents */}
+        <div className="absolute top-20 -left-20 w-96 h-96 rounded-full blur-3xl opacity-10" style={{ backgroundColor: 'var(--brand-primary)' }}></div>
+        <div className="absolute bottom-20 -right-20 w-80 h-80 rounded-full blur-3xl opacity-10" style={{ backgroundColor: 'var(--brand-primary)' }}></div>
       </div>
 
-      <div className="container mx-auto px-4 py-20 lg:py-12 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           {/* Left Side - Text Content */}
-          <div className="space-y-8">
-            <div className="space-y-6">
-              {/* Badge */}
-              <div className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium" 
-                   style={{ backgroundColor: `rgba(var(--brand-primary-rgb), 0.1)`, color: 'var(--brand-primary)' }}>
-                <span className="mr-2">🚀</span>
-                {sheetsBrandName || brandName || 'Brand Name'}
-              </div>
+          <div className="space-y-8 text-center lg:text-left">
+            {/* Brand Badge */}
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-50 border border-gray-200">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 bg-brand-primary"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-primary"></span>
+              </span>
+              <span className="text-sm font-medium text-gray-700">
+                {brandName || 'Welcome'}
+              </span>
+            </div>
 
-              {/* Main Heading */}
-              <h1 className="text-5xl lg:text-7xl font-bold text-gray-900 leading-tight">
-                <span className="bg-clip-text text-transparent" 
-                      style={{ backgroundImage: `linear-gradient(135deg, var(--brand-primary), color-mix(in srgb, var(--brand-primary) 70%, black))` }}>
-                  {sheetsHeroText || 'All in One Solution'}
+            {/* Main Heading */}
+            <div className="space-y-4">
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold leading-[1.1] tracking-tight">
+                <span className="text-gray-900">
+                  {sheetsHeroText?.split(' ').slice(0, -2).join(' ') || 'Transform Your'}
+                </span>
+                <br />
+                <span className="text-brand-primary">
+                  {sheetsHeroText?.split(' ').slice(-2).join(' ') || 'Business Today'}
                 </span>
               </h1>
-
-              {/* Subheading */}
-              <p className="text-xl lg:text-2xl text-gray-600 leading-relaxed max-w-2xl">
-                {sheetsHeroDescription || 'Your one-stop solution for Google Sheets projects and automation.'}
-              </p>
             </div>
-            
-            {/* CTA Button */}
-            <div className="flex flex-col sm:flex-row gap-4">
+
+            {/* Description */}
+            <p className="text-lg sm:text-xl text-gray-600 leading-relaxed max-w-xl mx-auto lg:mx-0">
+              {sheetsHeroDescription || 'Your one-stop solution for Google Sheets projects and automation.'}
+            </p>
+
+            {/* CTA Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
               <button
-                className={`${themeClasses.primaryButton} cursor-pointer px-8 py-4 rounded-xl text-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1`}
                 onClick={handleCTAClick}
+                className={`${themeClasses.primaryButton} group relative cursor-pointer px-8 py-4 rounded-xl text-lg font-semibold overflow-hidden transition-all duration-300 shadow-lg hover:shadow-xl hover:-translate-y-0.5`}
               >
-                {sheetsButtonName || 'Get Started'}
-              </button>
-              <button 
-                className="border-2 cursor-pointer border-gray-300 text-gray-700 px-8 py-4 rounded-xl text-lg font-semibold transition-all duration-300 hover:-translate-y-1"
-                style={{ 
-                  '--hover-border': 'var(--brand-primary)', 
-                  '--hover-text': 'var(--brand-primary)' 
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.borderColor = 'var(--brand-primary)';
-                  e.target.style.color = 'var(--brand-primary)';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.borderColor = '#d1d5db';
-                  e.target.style.color = '#374151';
-                }}
-                onClick={() => navigate('/showcase')}
-              >
-                Learn More
+                <span className="relative z-10 flex items-center justify-center gap-2">
+                  {sheetsButtonName || 'Get Started'}
+                  <svg className="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                  </svg>
+                </span>
               </button>
             </div>
 
-            {/* Trust indicators */}
-            <div className="flex items-center space-x-6 pt-4">
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--brand-primary)' }}></div>
-                <span className="text-sm text-gray-600">24/7 Support</span>
+            {/* Trust Indicators */}
+            <div className="flex flex-wrap items-center gap-6 justify-center lg:justify-start pt-4">
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full" style={{ backgroundColor: 'rgba(var(--brand-primary-rgb), 0.1)' }}>
+                  <svg className="w-4 h-4 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <span>Free Consultation</span>
               </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--brand-primary)' }}></div>
-                <span className="text-sm text-gray-600">Expert Team</span>
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full" style={{ backgroundColor: 'rgba(var(--brand-primary-rgb), 0.1)' }}>
+                  <svg className="w-4 h-4 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <span>24/7 Support</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full" style={{ backgroundColor: 'rgba(var(--brand-primary-rgb), 0.1)' }}>
+                  <svg className="w-4 h-4 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                </div>
+                <span>Secure & Reliable</span>
               </div>
             </div>
           </div>
 
-          {/* Right Side - Hero Image */}
+          {/* Right Side - Hero Visual */}
           <div className="relative">
             {sheetsHeroImageUrl ? (
-              <div className="relative rounded-3xl overflow-hidden shadow-2xl hero-image-container bg-gray-900">
-                <img
-                  src={optimizeImageUrl(sheetsHeroImageUrl, { width: 1200, height: 800, smartCrop: false })}
-                  alt="Hero"
-                  className="w-full h-auto object-contain rounded-3xl"
-                  referrerPolicy="no-referrer"
-                  onLoad={(e) => {
-                    e.target.style.display = 'block';
-                  }}
-                  onError={(e) => {
-                    console.error('Hero image failed to load:', e.target.src);
-                    // Hide the image container and show fallback
-                    const container = e.target.closest('.hero-image-container');
-                    if (container) {
-                      container.style.display = 'none';
-                    }
-                    const fallbackDiv = document.querySelector('.hero-fallback');
-                    if (fallbackDiv) {
-                      fallbackDiv.style.display = 'block';
-                    }
-                  }}
-                />
+              <div className="relative">
+                {/* Main Image Container */}
+                <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-gray-100">
+                  <img
+                    src={optimizeImageUrl(sheetsHeroImageUrl, { width: 1200, height: 800, smartCrop: false })}
+                    alt="Hero"
+                    className="w-full h-auto object-contain bg-white"
+                    referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      e.target.closest('.relative').style.display = 'none';
+                      document.querySelector('.hero-fallback-visual')?.classList.remove('hidden');
+                    }}
+                  />
+                </div>
 
-                {/* Floating elements */}
-                <div className="absolute -top-4 -right-4 w-8 h-8 bg-blue-500 rounded-full opacity-60 animate-pulse"></div>
-                <div className="absolute -bottom-4 -left-4 w-6 h-6 bg-blue-500 rounded-full opacity-60 animate-pulse animation-delay-1000"></div>
+                {/* Floating Stats Card */}
+                <div className="absolute -bottom-6 -left-6 bg-white rounded-2xl shadow-xl p-4 border border-gray-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-brand-primary flex items-center justify-center">
+                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Floating Badge */}
+                <div className="absolute -top-4 -right-4 bg-white rounded-full shadow-lg p-3 border border-gray-100">
+                  <div className="w-10 h-10 rounded-full bg-brand-primary flex items-center justify-center">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                    </svg>
+                  </div>
+                </div>
               </div>
             ) : null}
-            
-            {/* Fallback hero section - shows when image fails to load or no image provided */}
-            <div className={`hero-fallback bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-3xl p-8 lg:p-12 shadow-2xl relative overflow-hidden ${sheetsHeroImageUrl ? 'hidden' : 'block'}`}>
-              {/* Decorative elements */}
-              <div className="absolute top-0 left-0 w-32 h-32 bg-blue-500 opacity-20 rounded-full -translate-x-16 -translate-y-16"></div>
-              <div className="absolute top-8 left-8 w-16 h-16 bg-white opacity-10 rounded-full"></div>
-              <div className="absolute bottom-0 right-0 w-24 h-24 bg-blue-500 opacity-20 rounded-full translate-x-12 translate-y-12"></div>
-              
-              {/* Services List */}
-              <div className="relative z-10 space-y-6">
-                <h3 className="text-2xl lg:text-3xl font-bold text-white mb-8">
-                  Our Services
-                </h3>
-                
-                <div className="grid grid-cols-1 gap-4">
-                  {[
-                    'APP SCRIPT DEVELOPMENT',
-                    'SOCIAL MEDIA AUTOMATION', 
-                    'WEBSITE DEVELOPMENT',
-                    'WHATSAPP AUTOMATION',
-                    'EMAIL MARKETING',
-                    'E-COMMERCE'
-                  ].map((service, index) => (
-                    <div key={index} className="flex items-center space-x-3 group">
-                      <div className="w-2 h-2 bg-blue-400 rounded-full group-hover:bg-blue-300 transition-colors duration-200"></div>
-                      <span className="text-white font-semibold text-sm lg:text-base tracking-wide group-hover:text-blue-300 transition-colors duration-200">
-                        {service}
-                      </span>
-                    </div>
-                  ))}
-                </div>
 
-                {/* Bottom decorative image */}
-                <div className="absolute bottom-4 right-4 w-32 h-32 opacity-20">
-                  <svg viewBox="0 0 200 200" className="w-full h-full">
-                    <defs>
-                      <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#3B82F6" />
-                        <stop offset="100%" stopColor="#1E40AF" />
-                      </linearGradient>
-                    </defs>
-                    <path d="M50,100 Q100,50 150,100 T250,100" stroke="url(#gradient)" strokeWidth="3" fill="none" opacity="0.6"/>
-                    <circle cx="100" cy="100" r="8" fill="url(#gradient)" opacity="0.8"/>
-                    <circle cx="150" cy="100" r="8" fill="url(#gradient)" opacity="0.8"/>
-                  </svg>
+            {/* Fallback Visual */}
+            <div className={`hero-fallback-visual ${sheetsHeroImageUrl ? 'hidden' : ''}`}>
+              <div className="relative bg-gray-50 rounded-3xl p-8 lg:p-12 shadow-lg border border-gray-100 overflow-hidden">
+                {/* Services Grid */}
+                <div className="relative z-10">
+                  <h3 className="text-xl lg:text-2xl font-bold text-gray-900 mb-8 flex items-center gap-3">
+                    <span className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'rgba(var(--brand-primary-rgb), 0.1)' }}>
+                      <svg className="w-5 h-5 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                    </span>
+                    Our Services
+                  </h3>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {[
+                      { name: 'App Script Development', icon: 'M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4' },
+                      { name: 'Social Media Automation', icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z' },
+                      { name: 'Website Development', icon: 'M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9' },
+                      { name: 'WhatsApp Automation', icon: 'M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z' },
+                      { name: 'Email Marketing', icon: 'M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
+                      { name: 'E-Commerce Solutions', icon: 'M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z' }
+                    ].map((service, index) => (
+                      <div key={index} className="group flex items-center gap-3 p-3 rounded-xl bg-white border border-gray-100 hover:border-brand-primary/30 hover:shadow-md transition-all duration-300">
+                        <div className="w-10 h-10 rounded-lg bg-brand-primary flex items-center justify-center flex-shrink-0">
+                          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={service.icon} />
+                          </svg>
+                        </div>
+                        <span className="text-gray-700 font-medium text-sm group-hover:text-brand-primary transition-colors">
+                          {service.name}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-              
-              {/* Floating elements */}
-              <div className="absolute -top-4 -right-4 w-8 h-8 bg-blue-500 rounded-full opacity-60 animate-pulse"></div>
-              <div className="absolute -bottom-4 -left-4 w-6 h-6 bg-blue-500 rounded-full opacity-60 animate-pulse animation-delay-1000"></div>
+
+              {/* Floating Stats Card for Fallback */}
+              <div className="absolute -bottom-6 -left-6 bg-white rounded-2xl shadow-xl p-4 border border-gray-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-brand-primary flex items-center justify-center">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-gray-900">200+</p>
+                    <p className="text-xs text-gray-500">Happy Clients</p>
+                  </div>
+                </div>
+              </div>
             </div>
-            
           </div>
         </div>
       </div>

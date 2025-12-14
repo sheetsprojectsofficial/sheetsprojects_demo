@@ -1,4 +1,24 @@
 import nodemailer from 'nodemailer';
+import Settings from '../models/Settings.js';
+
+// Get settings helper function
+const getSettings = async () => {
+  try {
+    const settingsDoc = await Settings.getOrCreate();
+    return settingsDoc.settings || {};
+  } catch (error) {
+    console.error('Error fetching settings:', error);
+    return {};
+  }
+};
+
+// Get setting value with fallback
+const getSettingValue = (settings, key, defaultValue = '') => {
+  const setting = settings[key];
+  if (typeof setting === 'boolean') return setting;
+  if (typeof setting === 'object' && setting?.value !== undefined) return setting.value;
+  return setting || defaultValue;
+};
 
 // Create email transporter (using your existing email config)
 const createTransporter = () => {
@@ -7,12 +27,28 @@ const createTransporter = () => {
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASSWORD
-    }
+    },
+    // Connection pooling and timeout options
+    connectionTimeout: 60000,  // 60 seconds
+    socketTimeout: 60000,      // 60 seconds
+    greetingTimeout: 30000,    // 30 seconds
+    pool: true,                // Enable connection pooling
+    maxConnections: 5,         // Max simultaneous connections
+    maxMessages: 100           // Max messages per connection
   });
 };
 
 // Email templates
-const createOrderConfirmationEmail = (customerInfo, productInfo, orderId, isFree, productType = 'Soft') => {
+const createOrderConfirmationEmail = (customerInfo, productInfo, orderId, isFree, productType = 'Soft', settings = {}) => {
+  // Get dynamic values from settings with fallbacks
+  const brandName = getSettingValue(settings, 'Brand Name', 'SheetsProjects.com');
+  const supportEmail = getSettingValue(settings, 'Support Email', process.env.EMAIL_USER || 'support@example.com');
+  const supportPhone = getSettingValue(settings, 'Support Phone', '+91 XXXXXXXXXX');
+  const supportWhatsApp = getSettingValue(settings, 'Support WhatsApp', supportPhone);
+  const teamName = getSettingValue(settings, 'Team Name', 'The Team');
+  const businessHours = getSettingValue(settings, 'Business Hours', 'Monday to Saturday, 9 AM to 8 PM IST');
+  const primaryColor = getSettingValue(settings, 'Brand primary colour', '#2563eb');
+
   const subject = `Order Confirmation - ${productInfo.title}`;
   const isPhysical = productType === 'Physical' || productType === 'Physical + Soft';
 
@@ -33,7 +69,7 @@ const createOrderConfirmationEmail = (customerInfo, productInfo, orderId, isFree
           padding: 20px;
         }
         .header {
-          background-color: #2563eb;
+          background-color: ${primaryColor};
           color: white;
           padding: 30px 20px;
           text-align: center;
@@ -50,7 +86,7 @@ const createOrderConfirmationEmail = (customerInfo, productInfo, orderId, isFree
           padding: 20px;
           border-radius: 8px;
           margin: 20px 0;
-          border-left: 4px solid #2563eb;
+          border-left: 4px solid ${primaryColor};
         }
         .contact-info {
           background-color: #dbeafe;
@@ -67,7 +103,7 @@ const createOrderConfirmationEmail = (customerInfo, productInfo, orderId, isFree
         }
         .btn {
           display: inline-block;
-          background-color: #2563eb;
+          background-color: ${primaryColor};
           color: white;
           padding: 12px 24px;
           text-decoration: none;
@@ -124,22 +160,22 @@ const createOrderConfirmationEmail = (customerInfo, productInfo, orderId, isFree
           <h3>💬 Need Help?</h3>
           <p>If you have any questions or need assistance, please don't hesitate to contact us:</p>
           <ul>
-            <li><strong>Email:</strong> sheetsprojectsofficial@gmail.com</li>
-            <li><strong>Phone:</strong> +91 9213723036</li>
-            <li><strong>WhatsApp:</strong> +91 9213723036</li>
+            <li><strong>Email:</strong> ${supportEmail}</li>
+            <li><strong>Phone:</strong> ${supportPhone}</li>
+            <li><strong>WhatsApp:</strong> ${supportWhatsApp}</li>
           </ul>
-          <p>Our support team is available Monday to Saturday, 9 AM to 8 PM IST.</p>
+          <p>Our support team is available ${businessHours}.</p>
         </div>
 
-        <p>Thank you for choosing SheetsProjects.com for your Google Sheets automation needs!</p>
+        <p>Thank you for choosing ${brandName} for your Google Sheets automation needs!</p>
 
         <p>Best regards,<br>
-        <strong>The SheetsProjects Team</strong><br>
-        SheetsProjects.com</p>
+        <strong>${teamName}</strong><br>
+        ${brandName}</p>
       </div>
 
       <div class="footer">
-        <p>&copy; 2025 SheetsProjects.com. All rights reserved.</p>
+        <p>&copy; 2025 ${brandName}. All rights reserved.</p>
         <p>This is an automated email. Please do not reply directly to this email.</p>
       </div>
     </body>
@@ -165,13 +201,13 @@ const createOrderConfirmationEmail = (customerInfo, productInfo, orderId, isFree
     - Amount: ${isFree ? '₹0 (Free)' : `₹${productInfo.totalAmount || 0}`}
 
     If you need any help, you can contact us at:
-    Email: sheetsprojectsofficial@gmail.com
-    Phone: +91 9213723036
+    Email: ${supportEmail}
+    Phone: ${supportPhone}
 
-    Thank you for choosing SheetsProjects.com!
+    Thank you for choosing ${brandName}!
 
     Best regards,
-    The SheetsProjects Team
+    ${teamName}
   `;
 
   return { subject, html, text };
@@ -180,13 +216,17 @@ const createOrderConfirmationEmail = (customerInfo, productInfo, orderId, isFree
 // Email service functions
 export const sendOrderConfirmationEmail = async (customerInfo, productInfo, orderId, isFree = true, productType = 'Soft') => {
   try {
+    // Fetch settings from database
+    const settings = await getSettings();
+    const brandName = getSettingValue(settings, 'Brand Name', 'SheetsProjects.com');
+
     const transporter = createTransporter();
-    const emailContent = createOrderConfirmationEmail(customerInfo, productInfo, orderId, isFree, productType);
+    const emailContent = createOrderConfirmationEmail(customerInfo, productInfo, orderId, isFree, productType, settings);
 
     const mailOptions = {
       from: {
-        name: 'SheetsProjects.com',
-        address: process.env.EMAIL_USER || 'sheetsprojectsofficial@gmail.com'
+        name: brandName,
+        address: process.env.EMAIL_USER
       },
       to: customerInfo.email,
       subject: emailContent.subject,
@@ -214,12 +254,16 @@ export const sendOrderConfirmationEmail = async (customerInfo, productInfo, orde
 // Send notification email to admin
 export const sendAdminOrderNotification = async (customerInfo, productInfo, orderId, productType = 'Soft') => {
   try {
+    // Fetch settings from database
+    const settings = await getSettings();
+    const adminEmail = getSettingValue(settings, 'Admin Email', process.env.EMAIL_USER);
+
     const transporter = createTransporter();
     const isPhysical = productType === 'Physical' || productType === 'Physical + Soft';
 
-    const adminEmail = {
-      from: process.env.EMAIL_USER || 'sheetsprojectsofficial@gmail.com',
-      to: 'sheetsprojectsofficial@gmail.com',
+    const adminEmailOptions = {
+      from: process.env.EMAIL_USER,
+      to: adminEmail,
       subject: `New Order Received - ${orderId}`,
       html: `
         <h2>New Order Notification</h2>
@@ -239,7 +283,7 @@ export const sendAdminOrderNotification = async (customerInfo, productInfo, orde
       `
     };
 
-    await transporter.sendMail(adminEmail);
+    await transporter.sendMail(adminEmailOptions);
     console.log('Admin notification sent successfully');
 
   } catch (error) {
@@ -250,12 +294,16 @@ export const sendAdminOrderNotification = async (customerInfo, productInfo, orde
 // Generic send email function
 export const sendEmail = async (to, subject, html) => {
   try {
+    // Fetch settings from database
+    const settings = await getSettings();
+    const brandName = getSettingValue(settings, 'Brand Name', 'SheetsProjects.com');
+
     const transporter = createTransporter();
 
     const mailOptions = {
       from: {
-        name: 'SheetsProjects.com',
-        address: process.env.EMAIL_USER || 'sheetsprojectsofficial@gmail.com'
+        name: brandName,
+        address: process.env.EMAIL_USER
       },
       to: to,
       subject: subject,

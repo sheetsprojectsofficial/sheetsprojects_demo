@@ -3,144 +3,84 @@ import { useSettings } from '../context/SettingsContext';
 
 const FooterSectionManager = () => {
   const { settings, getSettingValue, refetch } = useSettings();
-  
-  // Helper function to get URL values from the 'link' property
-  const getURLValue = (key, defaultValue = '') => {
-    const setting = settings[key];
-    if (typeof setting === 'object' && setting?.link !== undefined) {
-      return setting.link;
-    }
-    return defaultValue;
-  };
-  
+
+  // Menu options mapping - same as FooterContext
+  const menuOptionsMapping = [
+    { name: 'Products', href: '/products', settingKey: 'Products' },
+    { name: 'Blog', href: '/blog', settingKey: 'Blog' },
+    { name: 'Showcase', href: '/showcase', settingKey: 'Showcase' },
+    { name: 'Book', href: '/book', settingKey: 'Books' },
+    { name: 'Courses', href: '/courses', settingKey: 'Courses' },
+    { name: 'Bookings', href: '/bookings', settingKey: 'Bookings' },
+    { name: 'Invoices', href: '/invoices', settingKey: 'Invoices' },
+    { name: 'Portfolio', href: '/portfolio', settingKey: 'Portfolio' },
+    { name: 'Webinar', href: '/webinar', settingKey: 'Webinar' },
+    { name: 'Events', href: '/events', settingKey: 'Events' },
+    { name: 'Trainings', href: '/trainings', settingKey: 'Trainings' },
+  ];
+
+  // Terms/Policy pages - hardcoded as they always show in footer
+  const termsPages = [
+    { name: 'Shipping Policy', href: '/shipping' },
+    { name: 'Terms & Conditions', href: '/terms' },
+    { name: 'Cancellations & Refunds', href: '/cancellations-refunds' },
+    { name: 'Privacy Policy', href: '/privacy' },
+    { name: 'Refund Policy', href: '/refund-policy' },
+    { name: 'Pricing Policy', href: '/pricing-policy' },
+  ];
+
   const [footerData, setFooterData] = useState({
-    // Company Information
-    companyName: '',
-    email: '',
-    phone: '',
-    address: '',
     description: '',
-    
-    // Quick Links Main Control
-    quickLinkEnabled: false,
-    termsLinkEnabled: false,
-    
-    // Navigation Items (from NavigationManager)
-    homeEnabled: false,
-    productsEnabled: false,
-    
-    // Quick Links Items
-    contactUsEnabled: false,
-    termConditionEnabled: false,
-    privacyPolicyEnabled: false,
-    
-    // URLs for footer links
-    homeURL: '/',
-    productsURL: '/products',
-    contactUsURL: '/contact',
-    termConditionURL: '/terms',
-    privacyPolicyURL: '/privacy',
-    
-    // Social Media
+    quickLinks: [],
     socialMediaEnabled: false,
-    facebookEnabled: false,
-    twitterEnabled: false,
-    instagramEnabled: false,
-    linkedinEnabled: false,
-    youtubeEnabled: false,
     facebookURL: '',
     twitterURL: '',
     instagramURL: '',
     linkedinURL: '',
     youtubeURL: '',
-    
-    // Copyright
     copyrightText: ''
   });
-  
+
   useEffect(() => {
     loadGoogleSheetsData();
   }, [settings]);
 
   const loadGoogleSheetsData = () => {
     if (!settings || Object.keys(settings).length === 0) return;
-    
-    // Get footer data from Google Sheets using the exact field names
-    const companyName = getSettingValue('Company Name', '');
-    const email = getSettingValue('Email', '');
-    const phone = getSettingValue('Phone', '');
-    const address = getSettingValue('Address', '');
+
     const description = getSettingValue('Description', '');
-    
-    // Main Quick Links and Terms control
-    const quickLinkEnabled = getSettingValue('Quick Link Enabled', false);
-    const termsLinkEnabled = getSettingValue('Terms Link Enabled', false);
-    
-    // Navigation items from NavigationManager (these should be visible if enabled in navigation)
-    const homeEnabled = getSettingValue('Home', false);
-    const productsEnabled = getSettingValue('Products', false);
-    
-    // Quick Links Items
-    const contactUsEnabled = getSettingValue('Contact Us', false);
-    const termConditionEnabled = getSettingValue('Term & Condition', false);
-    const privacyPolicyEnabled = getSettingValue('Privacy Policy', false);
-    
-    // Get URLs for footer links using the link property
-    const homeURL = getURLValue('Home URL', '/');
-    const productsURL = getURLValue('Products URL', '/products');
-    const contactUsURL = getURLValue('Contact Us URL', '/contact');
-    const termConditionURL = getURLValue('Term & Condition URL', '/terms');
-    const privacyPolicyURL = getURLValue('Privacy Policy URL', '/privacy');
-    
+
+    // Build quick links based on settings
+    const quickLinks = menuOptionsMapping.map(menuOption => {
+      const isEnabled = getSettingValue(menuOption.settingKey, false);
+      return {
+        name: menuOption.name,
+        href: menuOption.href,
+        settingKey: menuOption.settingKey,
+        enabled: isEnabled === true || isEnabled === 'TRUE' || isEnabled === 'true'
+      };
+    });
+
     // Social Media
     const socialMediaEnabled = getSettingValue('Social Media Enabled', false);
-    
-    // Get both enabled status and URL values for each social media platform
-    const facebookEnabled = getSettingValue('Facebook URL', false); // Checkbox status
-    const twitterEnabled = getSettingValue('Twitter URL', false);
-    const instagramEnabled = getSettingValue('Instagram URL', false);
-    const linkedinEnabled = getSettingValue('LinkedIn URL', false);
-    const youtubeEnabled = getSettingValue('YouTube URL', false);
-    
-    // Get the actual URL values from the 'link' property
-    const facebookURL = getURLValue('Facebook URL', '');
-    const twitterURL = getURLValue('Twitter URL', '');
-    const instagramURL = getURLValue('Instagram URL', '');
-    const linkedinURL = getURLValue('LinkedIn URL', '');
-    const youtubeURL = getURLValue('YouTube URL', '');
-    
+    const facebookURL = getSettingValue('Facebook URL', '');
+    const twitterURL = getSettingValue('Twitter URL', '');
+    const instagramURL = getSettingValue('Instagram URL', '');
+    const linkedinURL = getSettingValue('LinkedIn URL', '');
+    const youtubeURL = getSettingValue('YouTube URL', '');
+
     // Copyright
     const copyrightText = getSettingValue('Copyright Text', '');
-    
+
     setFooterData({
-      companyName,
-      email,
-      phone,
-      address,
       description,
-      quickLinkEnabled,
-      termsLinkEnabled,
-      homeEnabled,
-      productsEnabled,
-      contactUsEnabled,
-      termConditionEnabled,
-      privacyPolicyEnabled,
-      homeURL,
-      productsURL,
-      contactUsURL,
-      termConditionURL,
-      privacyPolicyURL,
-      socialMediaEnabled,
-      facebookEnabled,
-      twitterEnabled,
-      instagramEnabled,
-      linkedinEnabled,
-      youtubeEnabled,
-      facebookURL,
-      twitterURL,
-      instagramURL,
-      linkedinURL,
-      youtubeURL,
+      quickLinks,
+      socialMediaEnabled: socialMediaEnabled === true || socialMediaEnabled === 'TRUE' || socialMediaEnabled === 'true',
+      facebookURL: typeof facebookURL === 'object' ? facebookURL.link || '' : facebookURL || '',
+      twitterURL: typeof twitterURL === 'object' ? twitterURL.link || '' : twitterURL || '',
+      instagramURL: typeof instagramURL === 'object' ? instagramURL.link || '' : instagramURL || '',
+      linkedinURL: typeof linkedinURL === 'object' ? linkedinURL.link || '' : linkedinURL || '',
+      youtubeURL: typeof youtubeURL === 'object' ? youtubeURL.link || '' : youtubeURL || '',
       copyrightText
     });
   };
@@ -170,55 +110,13 @@ const FooterSectionManager = () => {
           </div>
         </div>
       </div>
-      
+
       <div className="p-6">
         <div className="space-y-6">
           {/* Company Information */}
           <div className="bg-gray-50 rounded-lg p-6">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Company Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Company Name</label>
-                <input
-                  type="text"
-                  value={footerData.companyName}
-                  readOnly
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed transition-colors"
-                  placeholder="Controlled by Google Sheets"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                <input
-                  type="email"
-                  value={footerData.email}
-                  readOnly
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed transition-colors"
-                  placeholder="Controlled by Google Sheets"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
-                <input
-                  type="text"
-                  value={footerData.phone}
-                  readOnly
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed transition-colors"
-                  placeholder="Controlled by Google Sheets"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
-                <input
-                  type="text"
-                  value={footerData.address}
-                  readOnly
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed transition-colors"
-                  placeholder="Controlled by Google Sheets"
-                />
-              </div>
-            </div>
-            <div className="mt-4">
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
               <textarea
                 value={footerData.description}
@@ -233,143 +131,59 @@ const FooterSectionManager = () => {
           {/* Quick Links */}
           <div className="bg-gray-50 rounded-lg p-6">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Quick Links</h3>
-            
-            {/* Main Quick Links Control */}
-            <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <div className="flex items-center space-x-3">
-                <div className={`w-4 h-4 rounded ${footerData.quickLinkEnabled ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                <span className="text-sm font-medium text-gray-900">Quick Link Section</span>
-                <span className="text-xs text-gray-600">
-                  ({footerData.quickLinkEnabled ? 'Enabled - Quick links will show in footer' : 'Disabled - Quick links will NOT show in footer'})
-                </span>
-              </div>
-            </div>
-            
-            {/* Quick Links Items - Home, Products, Contact Us */}
-            <div className="space-y-4">
-              {/* Home */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-center space-x-3 mb-3">
-                  <div className={`w-4 h-4 rounded ${footerData.homeEnabled ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                  <span className="text-sm font-medium text-gray-700">Home</span>
-                  <span className="text-xs text-gray-500">
-                    ({footerData.homeEnabled ? 'Enabled' : 'Disabled'})
+            <p className="text-sm text-gray-500 mb-4">
+              These links are controlled by the Menu Options in your Google Sheets. Only checked items will appear in the footer.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {footerData.quickLinks.map((link, index) => (
+                <div key={index} className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-3 h-3 rounded-full ${link.enabled ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                    <span className="text-sm font-medium text-gray-700">{link.name}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs text-gray-400">{link.href}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded ${link.enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {link.enabled ? 'Visible' : 'Hidden'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+
+              {/* About Us - Always shown */}
+              <div className="flex items-center justify-between p-3 bg-white border border-green-200 rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                  <span className="text-sm font-medium text-gray-700">About Us</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs text-gray-400">/about</span>
+                  <span className="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700">
+                    Always Visible
                   </span>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">URL</label>
-                  <input
-                    type="text"
-                    value={footerData.homeURL}
-                    readOnly
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-gray-50 cursor-not-allowed"
-                    placeholder="Controlled by Google Sheets"
-                  />
-                </div>
-              </div>
-              
-              {/* Products */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-center space-x-3 mb-3">
-                  <div className={`w-4 h-4 rounded ${footerData.productsEnabled ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                  <span className="text-sm font-medium text-gray-700">Products</span>
-                  <span className="text-xs text-gray-500">
-                    ({footerData.productsEnabled ? 'Enabled' : 'Disabled'})
-                  </span>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">URL</label>
-                  <input
-                    type="text"
-                    value={footerData.productsURL}
-                    readOnly
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-gray-50 cursor-not-allowed"
-                    placeholder="Controlled by Google Sheets"
-                  />
-                </div>
-              </div>
-              
-              {/* Contact Us */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-center space-x-3 mb-3">
-                  <div className={`w-4 h-4 rounded ${footerData.contactUsEnabled ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                  <span className="text-sm font-medium text-gray-700">Contact Us</span>
-                  <span className="text-xs text-gray-500">
-                    ({footerData.contactUsEnabled ? 'Enabled' : 'Disabled'})
-                  </span>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">URL</label>
-                  <input
-                    type="text"
-                    value={footerData.contactUsURL}
-                    readOnly
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-gray-50 cursor-not-allowed"
-                    placeholder="Controlled by Google Sheets"
-                  />
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Terms */}
+          {/* Terms Section */}
           <div className="bg-gray-50 rounded-lg p-6">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Terms Section</h3>
-            
-            {/* Main Terms Control */}
-            <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <div className="flex items-center space-x-3">
-                <div className={`w-4 h-4 rounded ${footerData.termsLinkEnabled ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                <span className="text-sm font-medium text-gray-900">Terms Section</span>
-                <span className="text-xs text-gray-600">
-                  ({footerData.termsLinkEnabled ? 'Enabled - Terms section will show in footer' : 'Disabled - Terms section will NOT show in footer'})
-                </span>
-              </div>
-            </div>
-            
-            {/* Terms Links Items - Terms & Conditions, Privacy Policy */}
-            <div className="space-y-4">
-              {/* Terms & Conditions */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-center space-x-3 mb-3">
-                  <div className={`w-4 h-4 rounded ${footerData.termConditionEnabled ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                  <span className="text-sm font-medium text-gray-700">Terms & Conditions</span>
-                  <span className="text-xs text-gray-500">
-                    ({footerData.termConditionEnabled ? 'Enabled' : 'Disabled'})
-                  </span>
+            <p className="text-sm text-gray-500 mb-4">
+              These policy pages are always shown in the footer Terms section.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {termsPages.map((page, index) => (
+                <div key={index} className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                    <span className="text-sm font-medium text-gray-700">{page.name}</span>
+                  </div>
+                  <span className="text-xs text-gray-400">{page.href}</span>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">URL</label>
-                  <input
-                    type="text"
-                    value={footerData.termConditionURL}
-                    readOnly
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-gray-50 cursor-not-allowed"
-                    placeholder="Controlled by Google Sheets"
-                  />
-                </div>
-              </div>
-              
-              {/* Privacy Policy */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-center space-x-3 mb-3">
-                  <div className={`w-4 h-4 rounded ${footerData.privacyPolicyEnabled ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                  <span className="text-sm font-medium text-gray-700">Privacy Policy</span>
-                  <span className="text-xs text-gray-500">
-                    ({footerData.privacyPolicyEnabled ? 'Enabled' : 'Disabled'})
-                  </span>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">URL</label>
-                  <input
-                    type="text"
-                    value={footerData.privacyPolicyURL}
-                    readOnly
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-gray-50 cursor-not-allowed"
-                    placeholder="Controlled by Google Sheets"
-                  />
-                </div>
-              </div>
+              ))}
             </div>
           </div>
 
@@ -379,114 +193,79 @@ const FooterSectionManager = () => {
             <div className="mb-4 flex items-center space-x-3">
               <div className={`w-4 h-4 rounded ${footerData.socialMediaEnabled ? 'bg-green-500' : 'bg-gray-300'}`}></div>
               <span className="text-sm font-medium text-gray-700">Social Media Section</span>
-              <span className="text-xs text-gray-500">
-                ({footerData.socialMediaEnabled ? 'Enabled' : 'Disabled'})
+              <span className={`text-xs px-2 py-0.5 rounded ${footerData.socialMediaEnabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                {footerData.socialMediaEnabled ? 'Enabled' : 'Disabled'}
               </span>
             </div>
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {/* Facebook */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-center space-x-3 mb-3">
-                  <div className={`w-4 h-4 rounded ${footerData.facebookEnabled ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+              <div className="p-3 bg-white border border-gray-200 rounded-lg">
+                <div className="flex items-center space-x-3 mb-2">
+                  <div className={`w-3 h-3 rounded-full ${footerData.facebookURL ? 'bg-green-500' : 'bg-gray-300'}`}></div>
                   <span className="text-sm font-medium text-gray-700">Facebook</span>
-                  <span className="text-xs text-gray-500">
-                    ({footerData.facebookEnabled ? 'Enabled' : 'Disabled'})
-                  </span>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">URL</label>
-                  <input
-                    type="text"
-                    value={footerData.facebookURL}
-                    readOnly
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-gray-50 cursor-not-allowed"
-                    placeholder="Controlled by Google Sheets"
-                  />
-                </div>
+                <input
+                  type="text"
+                  value={footerData.facebookURL || 'Not set'}
+                  readOnly
+                  className="w-full px-2 py-1 text-xs border border-gray-200 rounded bg-gray-50 cursor-not-allowed text-gray-500"
+                />
               </div>
-              
+
               {/* Twitter */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-center space-x-3 mb-3">
-                  <div className={`w-4 h-4 rounded ${footerData.twitterEnabled ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+              <div className="p-3 bg-white border border-gray-200 rounded-lg">
+                <div className="flex items-center space-x-3 mb-2">
+                  <div className={`w-3 h-3 rounded-full ${footerData.twitterURL ? 'bg-green-500' : 'bg-gray-300'}`}></div>
                   <span className="text-sm font-medium text-gray-700">Twitter</span>
-                  <span className="text-xs text-gray-500">
-                    ({footerData.twitterEnabled ? 'Enabled' : 'Disabled'})
-                  </span>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">URL</label>
-                  <input
-                    type="text"
-                    value={footerData.twitterURL}
-                    readOnly
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-gray-50 cursor-not-allowed"
-                    placeholder="Controlled by Google Sheets"
-                  />
-                </div>
+                <input
+                  type="text"
+                  value={footerData.twitterURL || 'Not set'}
+                  readOnly
+                  className="w-full px-2 py-1 text-xs border border-gray-200 rounded bg-gray-50 cursor-not-allowed text-gray-500"
+                />
               </div>
-              
+
               {/* Instagram */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-center space-x-3 mb-3">
-                  <div className={`w-4 h-4 rounded ${footerData.instagramEnabled ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+              <div className="p-3 bg-white border border-gray-200 rounded-lg">
+                <div className="flex items-center space-x-3 mb-2">
+                  <div className={`w-3 h-3 rounded-full ${footerData.instagramURL ? 'bg-green-500' : 'bg-gray-300'}`}></div>
                   <span className="text-sm font-medium text-gray-700">Instagram</span>
-                  <span className="text-xs text-gray-500">
-                    ({footerData.instagramEnabled ? 'Enabled' : 'Disabled'})
-                  </span>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">URL</label>
-                  <input
-                    type="text"
-                    value={footerData.instagramURL}
-                    readOnly
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-gray-50 cursor-not-allowed"
-                    placeholder="Controlled by Google Sheets"
-                  />
-                </div>
+                <input
+                  type="text"
+                  value={footerData.instagramURL || 'Not set'}
+                  readOnly
+                  className="w-full px-2 py-1 text-xs border border-gray-200 rounded bg-gray-50 cursor-not-allowed text-gray-500"
+                />
               </div>
-              
+
               {/* LinkedIn */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-center space-x-3 mb-3">
-                  <div className={`w-4 h-4 rounded ${footerData.linkedinEnabled ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+              <div className="p-3 bg-white border border-gray-200 rounded-lg">
+                <div className="flex items-center space-x-3 mb-2">
+                  <div className={`w-3 h-3 rounded-full ${footerData.linkedinURL ? 'bg-green-500' : 'bg-gray-300'}`}></div>
                   <span className="text-sm font-medium text-gray-700">LinkedIn</span>
-                  <span className="text-xs text-gray-500">
-                    ({footerData.linkedinEnabled ? 'Enabled' : 'Disabled'})
-                  </span>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">URL</label>
-                  <input
-                    type="text"
-                    value={footerData.linkedinURL}
-                    readOnly
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-gray-50 cursor-not-allowed"
-                    placeholder="Controlled by Google Sheets"
-                  />
-                </div>
+                <input
+                  type="text"
+                  value={footerData.linkedinURL || 'Not set'}
+                  readOnly
+                  className="w-full px-2 py-1 text-xs border border-gray-200 rounded bg-gray-50 cursor-not-allowed text-gray-500"
+                />
               </div>
-              
+
               {/* YouTube */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-center space-x-3 mb-3">
-                  <div className={`w-4 h-4 rounded ${footerData.youtubeEnabled ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+              <div className="p-3 bg-white border border-gray-200 rounded-lg">
+                <div className="flex items-center space-x-3 mb-2">
+                  <div className={`w-3 h-3 rounded-full ${footerData.youtubeURL ? 'bg-green-500' : 'bg-gray-300'}`}></div>
                   <span className="text-sm font-medium text-gray-700">YouTube</span>
-                  <span className="text-xs text-gray-500">
-                    ({footerData.youtubeEnabled ? 'Enabled' : 'Disabled'})
-                  </span>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">URL</label>
-                  <input
-                    type="text"
-                    value={footerData.youtubeURL}
-                    readOnly
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-gray-50 cursor-not-allowed"
-                    placeholder="Controlled by Google Sheets"
-                  />
-                </div>
+                <input
+                  type="text"
+                  value={footerData.youtubeURL || 'Not set'}
+                  readOnly
+                  className="w-full px-2 py-1 text-xs border border-gray-200 rounded bg-gray-50 cursor-not-allowed text-gray-500"
+                />
               </div>
             </div>
           </div>

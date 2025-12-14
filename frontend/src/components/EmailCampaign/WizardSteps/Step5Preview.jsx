@@ -189,7 +189,7 @@ const Step5Preview = ({ campaignData, updateCampaignData, onPrevious, onComplete
     try {
       const token = await getToken();
 
-      // First update the campaign
+      // First update the campaign with attachments
       await axios.put(
         `${API_BASE_URL}/email-campaigns/${editingCampaign._id}`,
         {
@@ -200,19 +200,20 @@ const Step5Preview = ({ campaignData, updateCampaignData, onPrevious, onComplete
             email: email,
             subject: campaignData.subject,
             sent: false
-          }))
+          })),
+          attachments: campaignData.attachments || []
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      // Then send emails
+      // Then send emails from existing campaign (not create-and-send)
       const response = await axios.post(
-        `${API_BASE_URL}/email-campaigns/create-and-send`,
+        `${API_BASE_URL}/email-campaigns/send-from-campaign`,
         {
-          name: campaignData.campaignName,
+          campaignId: editingCampaign._id,
+          recipients: recipientList,
           subject: campaignData.subject,
           body: campaignData.body,
-          recipients: recipientList,
           attachments: campaignData.attachments
         },
         { headers: { Authorization: `Bearer ${token}` } }
@@ -300,7 +301,6 @@ const Step5Preview = ({ campaignData, updateCampaignData, onPrevious, onComplete
           }
         </p>
         <div className="space-y-3">
-          <p className="text-gray-700">Please check your email inbox</p>
           <p className="text-gray-700">Emails may take a few minutes to arrive</p>
         </div>
       </div>

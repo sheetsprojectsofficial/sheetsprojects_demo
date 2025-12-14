@@ -39,7 +39,7 @@ const CampaignWizard = ({ onCancel, onComplete, editingCampaign, initialStep = 1
         },
         testEmail: '',
         testEmailSent: false,
-        attachments: [],
+        attachments: editingCampaign.attachments || [],
         recipients: recipientEmails
       });
 

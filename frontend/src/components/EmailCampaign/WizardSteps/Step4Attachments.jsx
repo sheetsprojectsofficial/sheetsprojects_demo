@@ -1,70 +1,97 @@
 import React, { useState } from 'react';
 import { toast } from 'react-toastify';
+import axios from 'axios';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5004/api';
 
 const Step4Attachments = ({ campaignData, updateCampaignData, onNext, onPrevious }) => {
   const [attachments, setAttachments] = useState(campaignData.attachments || []);
-  const [uploading, setUploading] = useState(false);
+  const [attachmentUrl, setAttachmentUrl] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleFileSelect = (e) => {
-    const files = Array.from(e.target.files);
+  const validateUrl = (url) => {
+    try {
+      const urlObj = new URL(url);
+      return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  };
 
-    if (files.length === 0) return;
+  const getFileNameFromUrl = async (url) => {
+    // Check if it's a Google Drive or Google Docs URL - fetch from backend
+    const isGoogleUrl = url.includes('drive.google.com') || url.includes('docs.google.com');
 
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    const oversizedFiles = files.filter(file => file.size > maxSize);
+    if (isGoogleUrl) {
+      try {
+        const response = await axios.post(`${API_BASE_URL}/email-campaigns/fetch-file-name`, { url });
+        if (response.data.success && response.data.fileName) {
+          return response.data.fileName;
+        }
+      } catch (error) {
+        console.log('Could not fetch file name from backend:', error);
+      }
+    }
 
-    if (oversizedFiles.length > 0) {
-      toast.error(`Some files exceed 10MB limit: ${oversizedFiles.map(f => f.name).join(', ')}`);
+    // Fallback: Extract filename from URL pathname
+    try {
+      const urlObj = new URL(url);
+      const pathname = urlObj.pathname;
+      const filename = pathname.substring(pathname.lastIndexOf('/') + 1);
+
+      // If filename is generic like "edit", "view", "preview", use "Document"
+      const genericNames = ['edit', 'view', 'preview', 'sharing', 'export'];
+      if (!filename || genericNames.includes(filename.toLowerCase()) || filename.length < 3) {
+        return 'Document';
+      }
+
+      return decodeURIComponent(filename);
+    } catch {
+      return 'Document';
+    }
+  };
+
+  const handleAddAttachment = async () => {
+    if (!attachmentUrl.trim()) {
+      toast.error('Please enter a file URL');
       return;
     }
 
-    if (attachments.length + files.length > 5) {
+    if (!validateUrl(attachmentUrl)) {
+      toast.error('Please enter a valid URL (must start with http:// or https://)');
+      return;
+    }
+
+    if (attachments.length >= 5) {
       toast.error('Maximum 5 attachments allowed');
       return;
     }
 
-    setUploading(true);
+    setIsLoading(true);
+    try {
+      const fileName = await getFileNameFromUrl(attachmentUrl);
+      const newAttachment = {
+        url: attachmentUrl,
+        name: fileName,
+        type: 'url'
+      };
 
-    const filePromises = files.map(file => {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          resolve({
-            name: file.name,
-            type: file.type,
-            size: file.size,
-            data: reader.result
-          });
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-    });
-
-    Promise.all(filePromises)
-      .then(newAttachments => {
-        setAttachments(prev => [...prev, ...newAttachments]);
-        toast.success(`${files.length} file(s) added`);
-      })
-      .catch(error => {
-        console.error('Error reading files:', error);
-        toast.error('Failed to process files');
-      })
-      .finally(() => {
-        setUploading(false);
-        e.target.value = '';
-      });
+      setAttachments(prev => [...prev, newAttachment]);
+      setAttachmentUrl('');
+    } catch (error) {
+      console.error('Error adding attachment:', error);
+      toast.error('Failed to add attachment');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleRemoveAttachment = (index) => {
     setAttachments(prev => prev.filter((_, i) => i !== index));
-    toast.info('Attachment removed');
   };
 
-  const formatFileSize = (bytes) => {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+  const handleViewAttachment = (url) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const handleNext = () => {
@@ -76,45 +103,55 @@ const Step4Attachments = ({ campaignData, updateCampaignData, onNext, onPrevious
     <div>
       <h2 className="text-2xl font-bold text-gray-900 mb-2">Add Attachments (Optional)</h2>
       <p className="text-gray-600 mb-6">
-        Attach files to your email campaign. You can add up to 5 files (10MB each).
+        Add file links to attach to your email campaign. You can add up to 5 file links.
       </p>
 
-      {/* Upload Area */}
+      {/* URL Input Area */}
       <div className="mb-6">
-        <label className="block">
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 hover:bg-blue-50 transition-all cursor-pointer">
-            <input
-              type="file"
-              multiple
-              onChange={handleFileSelect}
-              disabled={uploading || attachments.length >= 5}
-              className="hidden"
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.gif"
-            />
-            {uploading ? (
-              <div className="flex flex-col items-center">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-3"></div>
-                <p className="text-gray-600">Processing files...</p>
-              </div>
-            ) : attachments.length >= 5 ? (
-              <div className="flex flex-col items-center text-gray-500">
-                <svg className="w-12 h-12 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <p className="font-medium">Maximum 5 files reached</p>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center">
-                <svg className="w-12 h-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-                <p className="text-gray-700 font-medium mb-1">Click to upload files</p>
-                <p className="text-sm text-gray-500">or drag and drop</p>
-                <p className="text-xs text-gray-400 mt-2">PDF, DOC, XLS, PPT, Images (Max 10MB each)</p>
-              </div>
-            )}
-          </div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          File URL (PDF, DOC, or Google Drive link)
         </label>
+        <div className="flex gap-3">
+          <input
+            type="url"
+            value={attachmentUrl}
+            onChange={(e) => setAttachmentUrl(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleAddAttachment();
+              }
+            }}
+            placeholder="https://example.com/file.pdf or https://drive.google.com/..."
+            disabled={attachments.length >= 5}
+            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+          />
+          <button
+            onClick={handleAddAttachment}
+            disabled={attachments.length >= 5 || isLoading}
+            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {isLoading ? (
+              <>
+                <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Adding...
+              </>
+            ) : (
+              <>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add
+              </>
+            )}
+          </button>
+        </div>
+        <p className="text-xs text-gray-500 mt-2">
+          Supported formats: PDF, DOC, DOCX files or Google Drive links containing PDF/DOC files
+        </p>
       </div>
 
       {/* Attachments List */}
@@ -135,18 +172,30 @@ const Step4Attachments = ({ campaignData, updateCampaignData, onNext, onPrevious
                   </svg>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-gray-900 truncate">{file.name}</p>
-                    <p className="text-sm text-gray-500">{formatFileSize(file.size)}</p>
+                    <p className="text-sm text-gray-500 truncate">{file.url}</p>
                   </div>
                 </div>
-                <button
-                  onClick={() => handleRemoveAttachment(index)}
-                  className="ml-3 p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
-                  title="Remove attachment"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
+                <div className="flex items-center gap-2 ml-3 flex-shrink-0">
+                  <button
+                    onClick={() => handleViewAttachment(file.url)}
+                    className="px-3 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors flex items-center gap-1 text-sm font-medium"
+                    title="View attachment in new tab"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                    View
+                  </button>
+                  <button
+                    onClick={() => handleRemoveAttachment(index)}
+                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Remove attachment"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -156,7 +205,7 @@ const Step4Attachments = ({ campaignData, updateCampaignData, onNext, onPrevious
       {/* Info Card */}
       <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
         <p className="text-sm text-blue-800">
-          <strong>Tips:</strong> Keep file sizes small for faster delivery. Use PDF format when possible. Attachments are optional.
+          <strong>Tips:</strong> Use direct file links (PDF/DOC) or Google Drive sharing links. Make sure the file is publicly accessible or has proper sharing permissions. Attachments are optional.
         </p>
       </div>
 

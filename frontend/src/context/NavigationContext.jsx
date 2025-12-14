@@ -25,10 +25,12 @@ export const NavigationProvider = ({ children }) => {
     { id: 9, name: 'Trainings', href: '/trainings', visible: false, active: false },
     { id: 10, name: 'Contact', href: '/contact', visible: true, active: false },
    ]);
+  const [loading, setLoading] = useState(true);
 
   // Fetch navigation data from backend
   const fetchNavigation = async () => {
     try {
+      setLoading(true);
       const response = await fetch(`${import.meta.env.VITE_API_URL}/navigation`);
       const data = await response.json();
       if (data.success) {
@@ -36,6 +38,8 @@ export const NavigationProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Error fetching navigation:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -116,6 +120,7 @@ export const NavigationProvider = ({ children }) => {
     toggleNavigationItem,
     updateNavigationItem,
     fetchNavigation,
+    loading,
   };
 
   return (

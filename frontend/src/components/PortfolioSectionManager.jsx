@@ -17,29 +17,52 @@ const PortfolioSectionManager = () => {
 
   const loadGoogleSheetsData = () => {
     if (!settings || Object.keys(settings).length === 0) return;
-    
+
     // Get all data from Google Sheets - no hardcoded values
     const title = getSettingValue('Title', '');
     const heading = getSettingValue('Portfolio Main Heading', '');
     const subheading = getSettingValue('Portfolio Subheading', '');
-    
-    // Get statistics data from Google Sheets
+
+    // Dynamically get statistics data from Google Sheets
     const stats = [];
-    const statisticItems = ['Number of Projects', 'Number of Users', 'Projects Sold', 'Free Projects'];
-    
-    statisticItems.forEach(item => {
-      const value = getSettingValue(item, '');
-      const colorFromSheet = settings[item]?.link || ''; // Use link field for color
-      
-      if (value && value !== '') {
-        stats.push({
-          label: item,
-          value: value,
-          color: colorFromSheet.toLowerCase()
-        });
-      }
-    });
-    
+    const keys = Object.keys(settings);
+
+    // Find the Our Work Section boundaries
+    const ourWorkSectionIndex = keys.findIndex(key => key === 'Our Work Section');
+    const productsSectionIndex = keys.findIndex(key => key === 'Products Section' || key === 'Products section');
+
+    // Keys that are part of the section header, not stats
+    const excludeKeys = [
+      'Our Work Section', 'Statistics', 'Statistic', 'Title',
+      'Portfolio Main Heading', 'Portfolio Subheading',
+      'Products Section', 'Products section',
+      'Label', 'Value', 'Field', 'color'
+    ];
+
+    if (ourWorkSectionIndex !== -1) {
+      // Get keys between Our Work Section and Products Section (or end if not found)
+      const endIndex = productsSectionIndex !== -1 ? productsSectionIndex : keys.length;
+      const sectionKeys = keys.slice(ourWorkSectionIndex, endIndex);
+
+      sectionKeys.forEach(key => {
+        // Skip header/title keys
+        if (excludeKeys.includes(key)) return;
+
+        const setting = settings[key];
+        const value = typeof setting === 'object' ? setting?.value : setting;
+        const colorFromSheet = setting?.link || '';
+
+        // Only add if it has a value and looks like a stat (not boolean)
+        if (value && value !== '' && value !== 'TRUE' && value !== 'FALSE' && value !== true && value !== false) {
+          stats.push({
+            label: key,
+            value: value,
+            color: colorFromSheet ? colorFromSheet.toLowerCase() : ''
+          });
+        }
+      });
+    }
+
     setPortfolioData({
       title,
       heading,

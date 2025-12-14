@@ -48,6 +48,20 @@ const emailCampaignSchema = new mongoose.Schema({
     required: true
   },
   recipients: [recipientSchema],
+  attachments: [{
+    url: {
+      type: String,
+      required: true
+    },
+    name: {
+      type: String,
+      required: true
+    },
+    type: {
+      type: String,
+      default: 'url'
+    }
+  }],
   status: {
     type: String,
     enum: ['draft', 'sent', 'scheduled'],

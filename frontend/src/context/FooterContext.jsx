@@ -26,76 +26,89 @@ export const FooterProvider = ({ children }) => {
       return;
     }
 
-    // Company Info - These are fixed fields
+    // Company Info - Only description is used in footer
     const companyInfo = {
-      name: getSettingValue('Company Name', ''),
-      email: getSettingValue('Email', ''),
-      phone: getSettingValue('Phone', ''),
-      address: getSettingValue('Address', ''),
       description: getSettingValue('Description', '')
     };
     
     // Main controls
-    const quickLinkEnabled = getSettingValue('Quick Link Enabled', false);
-    const termsLinkEnabled = getSettingValue('Terms Link Enabled', false);
+    const quickLinkEnabled = true; // Always enabled now since we're using navigation
+    const termsLinkEnabled = true; // Always enabled to show all policy pages
     const socialMediaEnabled = getSettingValue('Social Media Enabled', false);
     const copyrightText = getSettingValue('Copyright Text', '');
-    
-    // Build links based on specific enabled items (non-dynamic approach for now)
+
+    // Build links
     const quickLinks = [];
-    const termsLinks = [];
     const socialMediaLinks = {};
-    
-    // Quick Links - check specific items
-    const homeEnabled = getSettingValue('Home', false);
-    const productsEnabled = getSettingValue('Products', false);
-    const contactUsEnabled = getSettingValue('Contact Us', false);
-    
-    if (homeEnabled) {
-      quickLinks.push({
-        text: 'Home',
-        url: '/',
+
+    // Menu options mapping
+    const menuOptionsMapping = [
+      { name: 'Products', href: '/products', settingKey: 'Products' },
+      { name: 'Blog', href: '/blog', settingKey: 'Blog' },
+      { name: 'Showcase', href: '/showcase', settingKey: 'Showcase' },
+      { name: 'Book', href: '/book', settingKey: 'Books' },
+      { name: 'Courses', href: '/courses', settingKey: 'Courses' },
+      { name: 'Bookings', href: '/bookings', settingKey: 'Bookings' },
+      { name: 'Invoices', href: '/invoices', settingKey: 'Invoices' },
+      { name: 'Portfolio', href: '/portfolio', settingKey: 'Portfolio' },
+      { name: 'Webinar', href: '/webinar', settingKey: 'Webinar' },
+      { name: 'Events', href: '/events', settingKey: 'Events' },
+      { name: 'Trainings', href: '/trainings', settingKey: 'Trainings' },
+    ];
+
+    // Quick Links
+    menuOptionsMapping.forEach(menuOption => {
+      const isVisible = getSettingValue(menuOption.settingKey, false);
+
+      if (isVisible === true || isVisible === 'TRUE' || isVisible === 'true') {
+        quickLinks.push({
+          text: menuOption.name,
+          url: menuOption.href,
+          enabled: true
+        });
+      }
+    });
+
+    quickLinks.push({
+      text: 'About Us',
+      url: '/about',
+      enabled: true
+    });
+
+    // Terms Links
+    const termsLinks = [
+      {
+        text: 'Shipping Policy',
+        url: '/shipping',
         enabled: true
-      });
-    }
-    
-    if (productsEnabled) {
-      quickLinks.push({
-        text: 'Products',
-        url: '/products',
-        enabled: true
-      });
-    }
-    
-    if (contactUsEnabled) {
-      quickLinks.push({
-        text: 'Contact Us',
-        url: '/contact',
-        enabled: true
-      });
-    }
-    
-    // Terms Links - check specific items
-    const termConditionEnabled = getSettingValue('Term & Condition', false);
-    const privacyPolicyEnabled = getSettingValue('Privacy Policy', false);
-    
-    if (termConditionEnabled) {
-      termsLinks.push({
+      },
+      {
         text: 'Terms & Conditions',
         url: '/terms',
         enabled: true
-      });
-    }
-    
-    if (privacyPolicyEnabled) {
-      termsLinks.push({
+      },
+      {
+        text: 'Cancellations & Refunds',
+        url: '/cancellations-refunds',
+        enabled: true
+      },
+      {
         text: 'Privacy Policy',
         url: '/privacy',
         enabled: true
-      });
-    }
+      },
+      {
+        text: 'Refund Policy',
+        url: '/refund-policy',
+        enabled: true
+      },
+      {
+        text: 'Pricing Policy',
+        url: '/pricing-policy',
+        enabled: true
+      }
+    ];
     
-    // Social Media URLs
     const facebookURL = getSettingValue('Facebook URL', '');
     const twitterURL = getSettingValue('Twitter URL', '');
     const instagramURL = getSettingValue('Instagram URL', '');
@@ -108,7 +121,6 @@ export const FooterProvider = ({ children }) => {
     if (linkedinURL) socialMediaLinks.linkedin = { enabled: true, url: linkedinURL };
     if (youtubeURL) socialMediaLinks.youtube = { enabled: true, url: youtubeURL };
 
-    // Structure the data in a format that Footer.jsx expects
     const processedFooterData = {
       companyInfo,
       quickLinks: {
@@ -127,7 +139,7 @@ export const FooterProvider = ({ children }) => {
       },
       copyright: {
         text: copyrightText,
-        links: [] // No copyright links from Google Sheets currently
+        links: []
       }
     };
 
@@ -139,7 +151,7 @@ export const FooterProvider = ({ children }) => {
   const value = {
     footerData,
     loading,
-    error: null // No errors from Google Sheets integration
+    error: null
   };
 
   return (

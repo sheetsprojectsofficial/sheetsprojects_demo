@@ -105,6 +105,7 @@ const applyThemeColors = (primaryColor, secondaryColor) => {
 
 export const BrandProvider = ({ children }) => {
   const [brandName, setBrandName] = useState('SHEETSPROJECTS.COM');
+  const [logoUrl, setLogoUrl] = useState('');
   const [brandColors, setBrandColors] = useState(DEFAULT_COLORS);
   const [loading, setLoading] = useState(true);
 
@@ -121,26 +122,36 @@ export const BrandProvider = ({ children }) => {
       
       const heroData = await heroResponse.json();
       const settingsData = await settingsResponse.json();
-      
-      // Update brand name from hero
-      if (heroData.success && heroData.heroSection.brandName) {
-        setBrandName(heroData.heroSection.brandName);
-      }
-      
-      // Update colors from settings
+
+      // Update colors and brand details from settings (Brand details section)
       if (settingsData.success && settingsData.data) {
         const settings = settingsData.data;
         let primaryColor = DEFAULT_COLORS.primary;
         let secondaryColor = DEFAULT_COLORS.secondary;
 
-        
+        // Get Brand name from Brand details section (NOT Hero Section)
+        if (settings['Brand name']?.value) {
+          setBrandName(settings['Brand name'].value);
+        } else if (settings['Brand Name']?.value) {
+          setBrandName(settings['Brand Name'].value);
+        }
+
+        // Get Logo URL from Brand details section
+        if (settings['Logo URL']?.value) {
+          setLogoUrl(settings['Logo URL'].value);
+        } else if (settings['Logo url']?.value) {
+          setLogoUrl(settings['Logo url'].value);
+        } else if (settings['logo url']?.value) {
+          setLogoUrl(settings['logo url'].value);
+        }
+
         // Look for brand color fields - try different variations
         if (settings['Brand primary colour']?.value) {
           primaryColor = settings['Brand primary colour'].value;
         } else if (settings['Brand primary color']?.value) {
           primaryColor = settings['Brand primary color'].value;
         }
-        
+
         if (settings['Brand secondary colour']?.value) {
           secondaryColor = settings['Brand secondary colour'].value;
         } else if (settings['Brand secondary color']?.value) {
@@ -236,6 +247,7 @@ export const BrandProvider = ({ children }) => {
 
   const value = {
     brandName,
+    logoUrl,
     brandColors,
     updateBrandName,
     updateBrandColors,

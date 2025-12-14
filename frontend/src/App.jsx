@@ -12,6 +12,7 @@ import { SubNavbarProvider } from "./context/SubNavbarContext";
 import { FooterProvider } from "./context/FooterContext";
 import { BrandProvider } from "./context/BrandContext";
 import { SettingsProvider } from "./context/SettingsContext";
+import { LoadingProvider } from "./context/LoadingContext";
 import Navbar from "./components/Navbar";
 import Login from "./components/Login";
 import Dashboard from "./components/Dashboard";
@@ -35,6 +36,9 @@ import TermsAndConditions from "./components/TermsAndConditions";
 import PrivacyPolicy from "./components/PrivacyPolicy";
 import ShippingPolicy from "./components/ShippingPolicy";
 import CancellationsRefunds from "./components/CancellationsRefunds";
+import AboutUs from "./components/AboutUs";
+import RefundPolicy from "./components/RefundPolicy";
+import PricingPolicy from "./components/PricingPolicy";
 import Footer from "./components/Footer";
 import SEOManager from "./components/SEOManager";
 import ScrollToTop from "./components/ScrollToTop";
@@ -56,9 +60,10 @@ function App() {
             <BrandProvider>
               <SettingsProvider>
                 <FooterProvider>
-                  <Router>
-                  <ScrollToTop />
-                  <Routes>
+                  <LoadingProvider>
+                    <Router>
+                    <ScrollToTop />
+                    <Routes>
                     {/* Dashboard routes - render without main layout */}
                     <Route
                       path="/dashboard"
@@ -124,6 +129,7 @@ function App() {
                               />
 
                               <Route path="/login" element={<Login />} />
+                              <Route path="/about" element={<AboutUs />} />
                               <Route
                                 path="/terms"
                                 element={<TermsAndConditions />}
@@ -139,6 +145,14 @@ function App() {
                               <Route
                                 path="/cancellations-refunds"
                                 element={<CancellationsRefunds />}
+                              />
+                              <Route
+                                path="/refund-policy"
+                                element={<RefundPolicy />}
+                              />
+                              <Route
+                                path="/pricing-policy"
+                                element={<PricingPolicy />}
                               />
                               <Route
                                 path="*"
@@ -163,7 +177,8 @@ function App() {
                     pauseOnHover
                     theme="light"
                   />
-                </Router>
+                  </Router>
+                  </LoadingProvider>
                 </FooterProvider>
               </SettingsProvider>
             </BrandProvider>

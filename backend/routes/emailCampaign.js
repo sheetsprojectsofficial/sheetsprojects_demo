@@ -2,6 +2,7 @@ import express from 'express';
 import {
   getNextCampaignNumber,
   fetchDocContent,
+  fetchGoogleDriveFileName,
   createCampaign,
   getCampaigns,
   getCampaignById,
@@ -14,6 +15,7 @@ import {
   extractEmailFromCard,
   sendTestEmail,
   createAndSendCampaign,
+  sendEmailsFromCampaign,
   checkEmailConfigStatus,
   getEmailStats,
   extractAndStoreCRMData,
@@ -32,6 +34,9 @@ router.get('/next-number', getNextCampaignNumber);
 // Route to fetch Google Doc content
 router.post('/fetch-doc', fetchDocContent);
 
+// Route to fetch Google Drive file name
+router.post('/fetch-file-name', fetchGoogleDriveFileName);
+
 // AI-powered endpoints (public for wizard)
 router.post('/generate-content', generateContent);
 router.post('/generate-subject', generateSubject);
@@ -47,6 +52,7 @@ router.delete('/crm-entries/:id', verifyToken, deleteCRMEntry);
 // Test email and create-and-send require authentication
 router.post('/send-test', verifyToken, sendTestEmail);
 router.post('/create-and-send', verifyToken, createAndSendCampaign);
+router.post('/send-from-campaign', verifyToken, sendEmailsFromCampaign);
 
 // Check email configuration status (requires auth)
 router.get('/check-email-config', verifyToken, checkEmailConfigStatus);

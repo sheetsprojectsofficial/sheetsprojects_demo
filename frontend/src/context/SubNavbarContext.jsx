@@ -26,10 +26,12 @@ export const SubNavbarProvider = ({ children }) => {
       }
     }
   });
+  const [loading, setLoading] = useState(true);
 
   // Fetch subnavbar data from backend
   const fetchSubNavbar = async () => {
     try {
+      setLoading(true);
       const response = await fetch(`${import.meta.env.VITE_API_URL}/subnavbar`);
       const data = await response.json();
       if (data.success) {
@@ -37,6 +39,8 @@ export const SubNavbarProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Error fetching subnavbar:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -117,6 +121,7 @@ export const SubNavbarProvider = ({ children }) => {
     updateBannerText,
     updateSocialLink,
     fetchSubNavbar,
+    loading,
   };
 
   return (

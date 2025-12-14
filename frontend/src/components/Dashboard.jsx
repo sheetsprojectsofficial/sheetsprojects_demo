@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSettings } from '../context/SettingsContext';
 import LandingPageManager from './LandingPageManager';
 import AdminProducts from './AdminProducts';
 import AdminBlogs from './AdminBlogs';
@@ -9,7 +10,6 @@ import Orders from './Orders';
 import CustomerDashboard from './CustomerDashboard';
 import AdminBookings from './AdminBookings';
 import Invoices from './Invoices';
-import ColdEmail from './ColdEmail';
 import EmailCampaign from './EmailCampaign/EmailCampaign';
 import CRMList from './EmailCampaign/CRMList';
 import { toast } from 'react-toastify';
@@ -17,11 +17,76 @@ import { toast } from 'react-toastify';
 const Dashboard = () => {
   const { user, isAdmin, logout } = useAuth();
   const navigate = useNavigate();
+  const { settings } = useSettings();
   const [searchParams, setSearchParams] = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    const saved = localStorage.getItem('sidebarCollapsed');
+    return saved ? JSON.parse(saved) : false;
+  });
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || (isAdmin() ? 'landing' : 'purchases'));
   const [syncing, setSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState('');
+
+  // Persist sidebar collapsed state
+  useEffect(() => {
+    localStorage.setItem('sidebarCollapsed', JSON.stringify(sidebarCollapsed));
+  }, [sidebarCollapsed]);
+
+  // Get enabled menu items from settings (except Home)
+  const getEnabledMenuItems = () => {
+    if (!settings || Object.keys(settings).length === 0) return [];
+
+    const keys = Object.keys(settings);
+    const menuOptionsIndex = keys.findIndex(key => key === 'Menu options');
+    const ourWorkSectionIndex = keys.findIndex(key => key === 'Our Work Section');
+
+    if (menuOptionsIndex === -1 || ourWorkSectionIndex === -1) return [];
+
+    const navigationKeys = keys.slice(menuOptionsIndex + 1, ourWorkSectionIndex);
+    const enabledItems = [];
+
+    navigationKeys.forEach(key => {
+      // Skip 'Home' and 'Contact' - we don't need them in admin
+      if (key.toLowerCase() === 'home' || key.toLowerCase() === 'contact') return;
+
+      const setting = settings[key];
+      let isEnabled = false;
+
+      if (typeof setting === 'object' && setting.hasOwnProperty('value')) {
+        if (typeof setting.value === 'boolean') {
+          isEnabled = setting.value;
+        } else if (typeof setting.value === 'string') {
+          const value = setting.value.toLowerCase().trim();
+          isEnabled = value === 'show' || value === 'true' || value === '1' || value === 'yes' || value === 'on';
+        } else if (setting.value === true || setting.value === 1) {
+          isEnabled = true;
+        }
+      }
+
+      if (isEnabled) {
+        enabledItems.push(key);
+      }
+    });
+
+    return enabledItems;
+  };
+
+  const enabledMenuItems = getEnabledMenuItems();
+
+  // Map menu items to their tab names and icons
+  const menuItemConfig = {
+    'Products': { tab: 'products', icon: '📦', label: 'Products' },
+    'Blog': { tab: 'blogs', icon: '📝', label: 'Blogs' },
+    'Blogs': { tab: 'blogs', icon: '📝', label: 'Blogs' },
+    'Contact': { tab: 'contact', icon: '📞', label: 'Contact' },
+    'Bookings': { tab: 'bookings', icon: '🏨', label: 'Bookings' },
+    'Books': { tab: 'books', icon: '📚', label: 'Books' },
+    'Orders': { tab: 'orders', icon: '📋', label: 'Orders' },
+    'Portfolio': { tab: 'portfolio', icon: '💼', label: 'Portfolio' },
+    'Courses': { tab: 'courses', icon: '🎓', label: 'Courses' },
+    'Invoices': { tab: 'invoices', icon: '🧾', label: 'Invoice' }
+  };
 
   useEffect(() => {
     const tab = searchParams.get('tab') || (isAdmin() ? 'landing' : 'purchases');
@@ -195,154 +260,155 @@ const Dashboard = () => {
   return (
     <div className="h-screen bg-gray-50 flex overflow-hidden">
       {/* Sidebar - Hidden by default on mobile, always visible on desktop */}
-      <div className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 lg:shadow-sm`}>
-        <div className="h-full flex flex-col">
+      <div className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} fixed inset-y-0 left-0 z-50 ${sidebarCollapsed ? 'w-20' : 'w-64'} bg-white shadow-2xl transform transition-all duration-300 ease-in-out lg:relative lg:translate-x-0 lg:shadow-sm`}>
+        <div className="h-full flex flex-col relative">
+          {/* Collapse Toggle Button - Desktop only */}
+          <button
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="hidden lg:flex absolute -right-3 top-8 z-50 w-6 h-6 bg-white border border-gray-200 rounded-full items-center justify-center shadow-md hover:bg-gray-50 transition-colors cursor-pointer"
+          >
+            <svg
+              className={`w-4 h-4 text-gray-600 transition-transform duration-300 ${sidebarCollapsed ? '' : 'rotate-180'}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+
           {/* Sidebar Header */}
-          <div className="flex-shrink-0 px-6 py-4 border-b border-gray-100 bg-white">
+          <div className={`flex-shrink-0 ${sidebarCollapsed ? 'px-5' : 'px-6'} ${sidebarCollapsed ? 'py-5' : 'py-4'} border-b border-gray-100 bg-white`}>
             <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <h1 className="text-xl font-semibold text-gray-900">
-                  {isAdmin() ? 'Admin Dashboard' : 'Customer Dashboard'}
-                </h1>
-                <p className="text-sm text-gray-500">
-                  {isAdmin() ? 'Manage your website content' : 'View your purchased products'}
-                </p>
-              </div>
-              <button
-                onClick={() => setSidebarOpen(false)}
-                className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-primary lg:hidden ml-4"
-              >
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+              {sidebarCollapsed ? (
+                <div className="w-full flex justify-center">
+                  <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold text-lg">
+                    {user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex-1">
+                    <h1 className="text-xl font-semibold text-gray-900">
+                      {isAdmin() ? 'Admin Dashboard' : 'Customer Dashboard'}
+                    </h1>
+                    <p className="text-sm text-gray-500">
+                      {isAdmin() ? 'Manage your website content' : 'View your purchased products'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setSidebarOpen(false)}
+                    className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-primary lg:hidden ml-4"
+                  >
+                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
           {/* Sidebar Navigation */}
           <div className="flex-1 overflow-y-auto scroll-smooth" style={{ minHeight: 0 }}>
             {isAdmin() ? (
-              <nav className="px-2 py-4 space-y-1">
-                <div className="px-3 py-2">
-                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Management</h3>
-                </div>
-                <button
-                  onClick={() => handleTabChange('invoices')}
-                  className={`${activeTab === 'invoices' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer px-3 py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full`}
-                  style={{ display: 'flex', alignItems: 'center', width: '100%' }}
-                >
-                  <span className="text-lg mr-3">🧾</span>
-                  <span className="flex-1 text-left">Invoice</span>
-                </button>
+              <nav className={`${sidebarCollapsed ? 'px-2' : 'px-2'} py-4 space-y-1`}>
+                {!sidebarCollapsed && (
+                  <div className="px-3 py-2">
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Management</h3>
+                  </div>
+                )}
+
+                {/* Landing Page - Always on top */}
                 <button
                   onClick={() => handleTabChange('landing')}
-                  className={`${activeTab === 'landing' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer px-3 py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full`}
-                  style={{ display: 'flex', alignItems: 'center', width: '100%' }}
+                  className={`${activeTab === 'landing' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full`}
+                  title={sidebarCollapsed ? 'Landing Page' : ''}
                 >
-                  <span className="text-lg mr-3">🏠</span>
-                  <span className="flex-1 text-left">Landing Page</span>
+                  <span className={`text-lg ${sidebarCollapsed ? '' : 'mr-3'}`}>🏠</span>
+                  {!sidebarCollapsed && <span className="flex-1 text-left">Landing Page</span>}
                 </button>
+
+                {/* Dynamic menu items from settings */}
+                {enabledMenuItems.map(item => {
+                  const config = menuItemConfig[item];
+                  if (!config) return null;
+                  return (
+                    <button
+                      key={item}
+                      onClick={() => handleTabChange(config.tab)}
+                      className={`${activeTab === config.tab ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full`}
+                      title={sidebarCollapsed ? config.label : ''}
+                    >
+                      <span className={`text-lg ${sidebarCollapsed ? '' : 'mr-3'}`}>{config.icon}</span>
+                      {!sidebarCollapsed && <span className="flex-1 text-left">{config.label}</span>}
+                    </button>
+                  );
+                })}
+
+                {/* Orders - Always show if Products is enabled */}
+                {enabledMenuItems.includes('Products') && (
+                  <button
+                    onClick={() => handleTabChange('orders')}
+                    className={`${activeTab === 'orders' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full`}
+                    title={sidebarCollapsed ? 'Orders' : ''}
+                  >
+                    <span className={`text-lg ${sidebarCollapsed ? '' : 'mr-3'}`}>📋</span>
+                    {!sidebarCollapsed && <span className="flex-1 text-left">Orders</span>}
+                  </button>
+                )}
+
+                {!sidebarCollapsed && (
+                  <div className="px-3 py-2 mt-4">
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Tools</h3>
+                  </div>
+                )}
+                {sidebarCollapsed && <div className="my-2 border-t border-gray-200"></div>}
+
+                {/* Invoice - Always there */}
                 <button
-                  onClick={() => handleTabChange('products')}
-                  className={`${activeTab === 'products' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer px-3 py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full`}
-                  style={{ display: 'flex', alignItems: 'center', width: '100%' }}
+                  onClick={() => handleTabChange('invoices')}
+                  className={`${activeTab === 'invoices' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full`}
+                  title={sidebarCollapsed ? 'Invoice' : ''}
                 >
-                  <span className="text-lg mr-3">📦</span>
-                  <span className="flex-1 text-left">Products</span>
+                  <span className={`text-lg ${sidebarCollapsed ? '' : 'mr-3'}`}>🧾</span>
+                  {!sidebarCollapsed && <span className="flex-1 text-left">Invoice</span>}
                 </button>
-                <button
-                  onClick={() => handleTabChange('blogs')}
-                  className={`${activeTab === 'blogs' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer px-3 py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full`}
-                  style={{ display: 'flex', alignItems: 'center', width: '100%' }}
-                >
-                  <span className="text-lg mr-3">📝</span>
-                  <span className="flex-1 text-left">Blogs</span>
-                </button>
-                <button
-                  onClick={() => handleTabChange('books')}
-                  className={`${activeTab === 'books' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer px-3 py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full`}
-                  style={{ display: 'flex', alignItems: 'center', width: '100%' }}
-                >
-                  <span className="text-lg mr-3">📚</span>
-                  <span className="flex-1 text-left">Books</span>
-                </button>
-                <button
-                  onClick={() => handleTabChange('orders')}
-                  className={`${activeTab === 'orders' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer px-3 py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full`}
-                  style={{ display: 'flex', alignItems: 'center', width: '100%' }}
-                >
-                  <span className="text-lg mr-3">📋</span>
-                  <span className="flex-1 text-left">Orders</span>
-                </button>
-                <button
-                  onClick={() => handleTabChange('bookings')}
-                  className={`${activeTab === 'bookings' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer px-3 py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full`}
-                  style={{ display: 'flex', alignItems: 'center', width: '100%' }}
-                >
-                  <span className="text-lg mr-3">🏨</span>
-                  <span className="flex-1 text-left">Bookings</span>
-                </button>
+
+                {/* Email Campaign - Always there */}
                 <button
                   onClick={() => handleTabChange('email-campaign')}
-                  className={`${activeTab === 'email-campaign' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer px-3 py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full`}
-                  style={{ display: 'flex', alignItems: 'center', width: '100%' }}
+                  className={`${activeTab === 'email-campaign' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full`}
+                  title={sidebarCollapsed ? 'Email Campaign' : ''}
                 >
-                  <span className="text-lg mr-3">📨</span>
-                  <span className="flex-1 text-left">Email Campaign</span>
+                  <span className={`text-lg ${sidebarCollapsed ? '' : 'mr-3'}`}>📨</span>
+                  {!sidebarCollapsed && <span className="flex-1 text-left">Email Campaign</span>}
                 </button>
+
+                {/* CRM - Always there */}
                 <button
                   onClick={() => handleTabChange('crm')}
-                  className={`${activeTab === 'crm' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer px-3 py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full`}
-                  style={{ display: 'flex', alignItems: 'center', width: '100%' }}
+                  className={`${activeTab === 'crm' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full`}
+                  title={sidebarCollapsed ? 'CRM' : ''}
                 >
-                  <span className="text-lg mr-3">👥</span>
-                  <span className="flex-1 text-left">CRM</span>
+                  <span className={`text-lg ${sidebarCollapsed ? '' : 'mr-3'}`}>👥</span>
+                  {!sidebarCollapsed && <span className="flex-1 text-left">CRM</span>}
                 </button>
               </nav>
             ) : (
-              <nav className="px-2 py-4 space-y-1">
-                <div className="px-3 py-2">
-                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">My Account</h3>
-                </div>
+              <nav className={`${sidebarCollapsed ? 'px-2' : 'px-2'} py-4 space-y-1`}>
+                {!sidebarCollapsed && (
+                  <div className="px-3 py-2">
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">My Account</h3>
+                  </div>
+                )}
                 <button
                   onClick={() => handleTabChange('purchases')}
-                  className={`${activeTab === 'purchases' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer px-3 py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full`}
-                  style={{ display: 'flex', alignItems: 'center', width: '100%' }}
+                  className={`${activeTab === 'purchases' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full`}
+                  title={sidebarCollapsed ? 'My Purchases' : ''}
                 >
-                  <span className="text-lg mr-3">🛒</span>
-                  <span className="flex-1 text-left">My Purchases</span>
-                </button>
-                <button
-                  onClick={() => handleTabChange('invoices')}
-                  className={`${activeTab === 'invoices' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer px-3 py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full`}
-                  style={{ display: 'flex', alignItems: 'center', width: '100%' }}
-                >
-                  <span className="text-lg mr-3">🧾</span>
-                  <span className="flex-1 text-left">Invoice</span>
-                </button>
-                <button
-                  onClick={() => handleTabChange('cold-email')}
-                  className={`${activeTab === 'cold-email' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer px-3 py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full`}
-                  style={{ display: 'flex', alignItems: 'center', width: '100%' }}
-                >
-                  <span className="text-lg mr-3">📧</span>
-                  <span className="flex-1 text-left">Cold Email Finder</span>
-                </button>
-                <button
-                  onClick={() => handleTabChange('email-campaign')}
-                  className={`${activeTab === 'email-campaign' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer px-3 py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full`}
-                  style={{ display: 'flex', alignItems: 'center', width: '100%' }}
-                >
-                  <span className="text-lg mr-3">📨</span>
-                  <span className="flex-1 text-left">Email Campaign</span>
-                </button>
-                <button
-                  onClick={() => handleTabChange('crm')}
-                  className={`${activeTab === 'crm' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer px-3 py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full`}
-                  style={{ display: 'flex', alignItems: 'center', width: '100%' }}
-                >
-                  <span className="text-lg mr-3">�</span>
-                  <span className="flex-1 text-left">CRM</span>
+                  <span className={`text-lg ${sidebarCollapsed ? '' : 'mr-3'}`}>🛒</span>
+                  {!sidebarCollapsed && <span className="flex-1 text-left">My Purchases</span>}
                 </button>
               </nav>
             )}
@@ -378,13 +444,7 @@ const Dashboard = () => {
                       {activeTab === 'crm' && 'CRM - Contacts'}
                     </>
                   ) : (
-                    <>
-                      {activeTab === 'purchases' && 'My Purchases'}
-                      {activeTab === 'invoices' && 'Invoice Generator'}
-                      {activeTab === 'cold-email' && 'Cold Email Finder'}
-                      {activeTab === 'email-campaign' && 'Email Campaign Management'}
-                      {activeTab === 'crm' && 'CRM - Contacts'}
-                    </>
+                    'My Purchases'
                   )}
                 </h2>
                 <p className="text-sm text-gray-500 hidden sm:block">
@@ -400,13 +460,7 @@ const Dashboard = () => {
                       {activeTab === 'crm' && 'Manage your contacts extracted from visiting cards'}
                     </>
                   ) : (
-                    <>
-                      {activeTab === 'purchases' && 'View and access your purchased solutions'}
-                      {activeTab === 'invoices' && 'Create professional invoices instantly'}
-                      {activeTab === 'cold-email' && 'Extract emails from company websites automatically'}
-                      {activeTab === 'email-campaign' && 'Create and manage email campaigns'}
-                      {activeTab === 'crm' && 'Manage your contacts extracted from visiting cards'}
-                    </>
+                    'View and access your purchased solutions'
                   )}
                 </p>
               </div>
@@ -468,7 +522,7 @@ const Dashboard = () => {
           <div className={
             activeTab === 'invoices'
               ? ''
-              : 'py-6 px-4 sm:px-6'
+              : 'py-4 px-4 sm:px-6'
           }>
             <div className="max-w-7xl mx-auto">
               {isAdmin() ? (
@@ -484,13 +538,7 @@ const Dashboard = () => {
                   {activeTab === 'crm' && <CRMList />}
                 </div>
               ) : (
-                <>
-                  {activeTab === 'purchases' && <CustomerDashboard />}
-                  {activeTab === 'invoices' && <Invoices />}
-                  {activeTab === 'cold-email' && <ColdEmail />}
-                  {activeTab === 'email-campaign' && <EmailCampaign />}
-                  {activeTab === 'crm' && <CRMList />}
-                </>
+                <CustomerDashboard />
               )}
             </div>
           </div>

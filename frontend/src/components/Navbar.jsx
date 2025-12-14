@@ -14,17 +14,17 @@ const Navbar = () => {
   const { settings, getSettingValue } = useSettings();
   const { isAuthenticated, logout, user, isAdmin, loginWithGoogle } = useAuth();
   const { cart } = useCart();
-  const { brandName: contextBrandName } = useBrand();
+  const { brandName: contextBrandName, logoUrl: contextLogoUrl } = useBrand();
   const { getThemeClasses } = useTheme();
 
   const themeClasses = getThemeClasses();
 
-  // Get brand name from settings (Google Sheets) - prioritize this over context
-  const sheetsBrandName = getSettingValue('Brand Name', '') || getSettingValue('Brand name', '');
-  const brandName = sheetsBrandName || contextBrandName;
+  // Get brand name from Brand details section (prioritize 'Brand name' over 'Brand Name' from Hero)
+  const brandDetailsName = getSettingValue('Brand name', '');
+  const brandName = brandDetailsName || contextBrandName;
 
-  // Get logo URL from settings and convert to usable format
-  const rawLogoUrl = getSettingValue('Logo URL', '') || getSettingValue('logo url', '') || getSettingValue('Logo url', '');
+  // Get logo URL from Brand details section and convert to usable format
+  const rawLogoUrl = getSettingValue('Logo URL', '') || getSettingValue('logo url', '') || getSettingValue('Logo url', '') || contextLogoUrl;
   const logoUrl = rawLogoUrl ? convertImageUrl(rawLogoUrl) : '';
   
   const navigate = useNavigate();

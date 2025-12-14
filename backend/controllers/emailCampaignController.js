@@ -76,6 +76,12 @@ export const fetchDocContent = async (req, res) => {
 
       let content = response.data;
 
+      // Remove DOCTYPE and html/head tags - extract only body content
+      content = content.replace(/<!DOCTYPE[^>]*>/gi, '');
+      content = content.replace(/<html[^>]*>/gi, '');
+      content = content.replace(/<\/html>/gi, '');
+      content = content.replace(/<head\b[^<]*(?:(?!<\/head>)<[^<]*)*<\/head>/gi, '');
+
       // Remove dangerous elements for security
       content = content.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
       content = content.replace(/<form\b[^<]*(?:(?!<\/form>)<[^<]*)*<\/form>/gi, '');
@@ -89,6 +95,9 @@ export const fetchDocContent = async (req, res) => {
       if (bodyMatch) {
         content = bodyMatch[1];
       }
+
+      // Remove any remaining body tags
+      content = content.replace(/<\/?body[^>]*>/gi, '');
 
       // Clean up but preserve all formatting-related inline styles
       content = content.replace(/style="([^"]*)"/gi, (match, styleContent) => {
@@ -128,6 +137,13 @@ export const fetchDocContent = async (req, res) => {
       // Remove id attributes (Google Docs specific)
       content = content.replace(/\sid="[^"]*"/gi, '');
 
+      // Wrap content in a container div with basic email styling
+      content = `
+        <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px;">
+          ${content}
+        </div>
+      `;
+
       res.json({
         success: true,
         content: content.trim()
@@ -144,6 +160,176 @@ export const fetchDocContent = async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch document content'
+    });
+  }
+};
+
+// Fetch Google Drive file name from URL
+export const fetchGoogleDriveFileName = async (req, res) => {
+  try {
+    const { url } = req.body;
+
+    if (!url) {
+      return res.status(400).json({
+        success: false,
+        error: 'URL is required'
+      });
+    }
+
+    let fileName = null;
+
+    // Check if it's a Google Drive file URL
+    if (url.includes('drive.google.com/file/d/')) {
+      const fileIdMatch = url.match(/\/file\/d\/([a-zA-Z0-9-_]+)/);
+      if (fileIdMatch) {
+        const fileId = fileIdMatch[1];
+
+        try {
+          // Try to fetch the Google Drive page to extract the title
+          const response = await axios.get(url, {
+            timeout: 10000,
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+          });
+
+          // Extract title from HTML
+          const titleMatch = response.data.match(/<title[^>]*>([^<]+)<\/title>/i);
+          if (titleMatch && titleMatch[1]) {
+            let title = titleMatch[1].trim();
+            // Remove " - Google Drive" suffix if present
+            title = title.replace(/\s*-\s*Google Drive\s*$/i, '').trim();
+            if (title && title !== 'Google Drive') {
+              fileName = title;
+            }
+          }
+        } catch (fetchError) {
+          console.log('Could not fetch Google Drive page:', fetchError.message);
+        }
+
+        // Fallback: try the download endpoint for Content-Disposition header
+        if (!fileName) {
+          try {
+            const downloadUrl = `https://drive.google.com/uc?id=${fileId}&export=download`;
+            const response = await axios.head(downloadUrl, {
+              timeout: 10000,
+              maxRedirects: 5
+            });
+
+            const contentDisposition = response.headers['content-disposition'];
+            if (contentDisposition) {
+              const filenameMatch = contentDisposition.match(/filename\*?=['"]?(?:UTF-8'')?([^"';\n]+)/i) ||
+                                   contentDisposition.match(/filename="?([^";\n]+)"?/i);
+              if (filenameMatch && filenameMatch[1]) {
+                fileName = decodeURIComponent(filenameMatch[1].trim());
+              }
+            }
+          } catch (downloadError) {
+            console.log('Could not fetch from download endpoint:', downloadError.message);
+          }
+        }
+      }
+    }
+
+    // Check if it's a Google Drive open URL format
+    if (!fileName && url.includes('drive.google.com/open')) {
+      try {
+        const urlObj = new URL(url);
+        const fileId = urlObj.searchParams.get('id');
+        if (fileId) {
+          const downloadUrl = `https://drive.google.com/uc?id=${fileId}&export=download`;
+          const response = await axios.head(downloadUrl, {
+            timeout: 10000,
+            maxRedirects: 5
+          });
+
+          const contentDisposition = response.headers['content-disposition'];
+          if (contentDisposition) {
+            const filenameMatch = contentDisposition.match(/filename\*?=['"]?(?:UTF-8'')?([^"';\n]+)/i) ||
+                                 contentDisposition.match(/filename="?([^";\n]+)"?/i);
+            if (filenameMatch && filenameMatch[1]) {
+              fileName = decodeURIComponent(filenameMatch[1].trim());
+            }
+          }
+        }
+      } catch (error) {
+        console.log('Could not fetch Google Drive open URL:', error.message);
+      }
+    }
+
+    // Check if it's a Google Docs URL
+    if (!fileName && url.includes('docs.google.com/document')) {
+      const docIdMatch = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+      if (docIdMatch) {
+        const docId = docIdMatch[1];
+        try {
+          const exportUrl = `https://docs.google.com/document/d/${docId}/export?format=txt`;
+          const response = await axios.head(exportUrl, { timeout: 10000 });
+
+          const contentDisposition = response.headers['content-disposition'];
+          if (contentDisposition) {
+            const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+            if (filenameMatch && filenameMatch[1]) {
+              fileName = filenameMatch[1].replace(/\.txt$/, '');
+            }
+          }
+        } catch (error) {
+          console.log('Could not fetch Google Doc title:', error.message);
+        }
+      }
+    }
+
+    // Check if it's a Google Sheets URL
+    if (!fileName && url.includes('docs.google.com/spreadsheets')) {
+      const sheetIdMatch = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+      if (sheetIdMatch) {
+        try {
+          const response = await axios.get(url, {
+            timeout: 10000,
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+          });
+
+          const titleMatch = response.data.match(/<title[^>]*>([^<]+)<\/title>/i);
+          if (titleMatch && titleMatch[1]) {
+            let title = titleMatch[1].trim();
+            title = title.replace(/\s*-\s*Google Sheets\s*$/i, '').trim();
+            if (title && title !== 'Google Sheets') {
+              fileName = title;
+            }
+          }
+        } catch (error) {
+          console.log('Could not fetch Google Sheets title:', error.message);
+        }
+      }
+    }
+
+    // If still no filename, try to extract from URL pathname as fallback
+    if (!fileName) {
+      try {
+        const urlObj = new URL(url);
+        const pathname = urlObj.pathname;
+        const pathFileName = pathname.substring(pathname.lastIndexOf('/') + 1);
+
+        const genericNames = ['edit', 'view', 'preview', 'sharing', 'export'];
+        if (pathFileName && !genericNames.includes(pathFileName.toLowerCase()) && pathFileName.length >= 3) {
+          fileName = decodeURIComponent(pathFileName);
+        }
+      } catch (error) {
+        console.log('Could not extract filename from URL:', error.message);
+      }
+    }
+
+    res.json({
+      success: true,
+      fileName: fileName || null
+    });
+  } catch (error) {
+    console.error('Error in fetchGoogleDriveFileName:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch file name'
     });
   }
 };
@@ -268,7 +454,7 @@ export const updateCampaign = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.uid;
-    const { name, docUrl, docContent, recipients, status } = req.body;
+    const { name, docUrl, docContent, recipients, status, attachments } = req.body;
 
     const campaign = await EmailCampaign.findOne({
       _id: id,
@@ -287,6 +473,7 @@ export const updateCampaign = async (req, res) => {
     if (docContent) campaign.docContent = docContent;
     if (recipients) campaign.recipients = recipients;
     if (status) campaign.status = status;
+    if (attachments !== undefined) campaign.attachments = attachments;
 
     await campaign.save();
 
@@ -1610,6 +1797,105 @@ export const getEmailStats = async (req, res) => {
   }
 };
 
+// Send emails from existing campaign
+export const sendEmailsFromCampaign = async (req, res) => {
+  try {
+    const { campaignId, recipients, subject, body, attachments } = req.body;
+    const userId = req.user.uid;
+
+    // Validation
+    if (!campaignId || !recipients || recipients.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Campaign ID and recipients are required",
+      });
+    }
+
+    // Check if email is configured
+    const emailConfigStatus = await isEmailConfigured(userId);
+    if (!emailConfigStatus.configured) {
+      return res.status(400).json({
+        success: false,
+        message: "Email not configured. Please configure your email settings first.",
+        notConfigured: true
+      });
+    }
+
+    // Get the campaign
+    const campaign = await EmailCampaign.findOne({
+      _id: campaignId,
+      createdBy: userId
+    });
+
+    if (!campaign) {
+      return res.status(404).json({
+        success: false,
+        message: "Campaign not found",
+      });
+    }
+
+    // Send emails to all recipients
+    let sentCount = 0;
+    const errors = [];
+
+    for (const recipientEmail of recipients) {
+      try {
+        const result = await sendEmail(userId, recipientEmail, subject, body, recipientEmail.split('@')[0], attachments || []);
+
+        if (result.success) {
+          sentCount++;
+          // Mark as sent in campaign
+          const recipient = campaign.recipients.find((r) => r.email === recipientEmail);
+          if (recipient) {
+            recipient.sent = true;
+            recipient.sentAt = new Date();
+          }
+        } else {
+          errors.push({ email: recipientEmail, error: result.error });
+        }
+      } catch (emailError) {
+        console.error(`Error sending to ${recipientEmail}:`, emailError);
+        errors.push({ email: recipientEmail, error: emailError.message });
+      }
+    }
+
+    // Update campaign status
+    campaign.sentCount = sentCount;
+    campaign.status = sentCount === recipients.length ? "sent" : "partial";
+    await campaign.save();
+
+    // Increment campaign emails count by the number of emails sent
+    if (sentCount > 0) {
+      await User.findOneAndUpdate(
+        { uid: userId },
+        {
+          $inc: { 'emailStats.campaignEmailsSent': sentCount },
+          $set: { updatedAt: new Date() }
+        },
+        { upsert: true }
+      );
+    }
+
+    res.json({
+      success: true,
+      message: `Emails sent! ${sentCount}/${recipients.length} delivered.`,
+      campaign: {
+        id: campaign._id,
+        sentCount,
+        totalRecipients: recipients.length,
+        status: campaign.status,
+      },
+      errors: errors.length > 0 ? errors : undefined,
+    });
+  } catch (error) {
+    console.error("Error sending emails from campaign:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to send emails",
+    });
+  }
+};
+
 // Create campaign and send emails (wizard flow)
 export const createAndSendCampaign = async (req, res) => {
   try {
@@ -1658,7 +1944,7 @@ export const createAndSendCampaign = async (req, res) => {
 
     for (const recipientEmail of recipients) {
       try {
-        const result = await sendEmail(userId, recipientEmail, subject, body);
+        const result = await sendEmail(userId, recipientEmail, subject, body, recipientEmail.split('@')[0], attachments || []);
 
         if (result.success) {
           sentCount++;

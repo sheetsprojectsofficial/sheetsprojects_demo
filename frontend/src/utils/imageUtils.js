@@ -69,7 +69,6 @@ export const convertImageUrl = (url) => {
     // Use lh3.googleusercontent.com for better compatibility and embedding
     // This format works better with CORS and various browsers
     const convertedUrl = `https://lh3.googleusercontent.com/d/${fileId}`;
-    console.log('Converted Google Drive URL:', url, 'to:', convertedUrl);
     return convertedUrl;
   }
 

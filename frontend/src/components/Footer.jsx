@@ -2,19 +2,29 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useFooter } from '../context/FooterContext';
 import { useBrand } from '../context/BrandContext';
+import { useSettings } from '../context/SettingsContext';
+import { convertImageUrl } from '../utils/imageUtils';
 
 const Footer = () => {
   const { footerData, loading } = useFooter();
-  const { brandName } = useBrand();
+  const { brandName, logoUrl } = useBrand();
+  const { getSettingValue } = useSettings();
+
+  // Get phone and email from Contact Us Section settings
+  const contactEmail = getSettingValue('Email Address', '');
+  const contactPhone = getSettingValue('Phone Number', '');
+
+  // Convert logo URL to usable format
+  const convertedLogoUrl = logoUrl ? convertImageUrl(logoUrl) : '';
 
   if (loading || !footerData) {
     return (
-      <footer className="bg-gray-900 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <footer className="bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <div className="text-center">
-            <div className="animate-pulse">
-              <div className="h-4 bg-gray-700 rounded w-1/4 mx-auto mb-4"></div>
-              <div className="h-3 bg-gray-700 rounded w-1/2 mx-auto"></div>
+            <div className="animate-pulse space-y-4">
+              <div className="h-8 bg-gray-200 rounded w-48 mx-auto"></div>
+              <div className="h-4 bg-gray-200 rounded w-64 mx-auto"></div>
             </div>
           </div>
         </div>
@@ -53,29 +63,25 @@ const Footer = () => {
     return icons[platform] || null;
   };
 
+  const handleLinkClick = () => {
+    setTimeout(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+    }, 50);
+  };
+
   const renderLinks = (links) => {
     if (!links || !Array.isArray(links)) return null;
-    
-    const handleLinkClick = () => {
-      // Ensure smooth scroll to top when clicking footer links
-      setTimeout(() => {
-        window.scrollTo({
-          top: 0,
-          left: 0,
-          behavior: 'smooth'
-        });
-      }, 50);
-    };
-    
+
     return (
-      <ul className="space-y-2">
+      <ul className="space-y-3">
         {links.filter(link => link.enabled).map((link, index) => (
           <li key={index}>
-            <Link 
-              to={link.url} 
+            <Link
+              to={link.url}
               onClick={handleLinkClick}
-              className="text-gray-300 hover:text-white transition-colors duration-200"
+              className="text-gray-600 hover:text-gray-900 transition-colors duration-200 text-sm flex items-center gap-2 group"
             >
+              <span className="w-1.5 h-1.5 rounded-full bg-gray-300 group-hover:bg-brand-primary transition-colors"></span>
               {link.text}
             </Link>
           </li>
@@ -84,123 +90,135 @@ const Footer = () => {
     );
   };
 
-  // Get the number of columns dynamically
-  const getColumnCount = () => {
-    let columns = 1; // Always have company info
-    if (footerData.quickLinks?.enabled && footerData.quickLinks?.links?.length > 0) columns++;
-    if (footerData.terms?.enabled && footerData.terms?.links?.length > 0) columns++;
-    return Math.min(columns, 3); // Max 3 columns
-  };
-
   return (
-    <footer className="bg-gray-900 text-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className={`grid grid-cols-1 ${getColumnCount() > 1 ? `md:grid-cols-${getColumnCount()}` : ''} gap-8`}>
+    <footer className="relative bg-gray-50 overflow-hidden border-t border-gray-200">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        {/* Main Footer Content */}
+        <div className="py-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
           {/* Company Info */}
-          <div>
-            <h3 className="text-lg font-semibold mb-4">
-              {footerData.companyInfo?.name || brandName || 'Company'}
-            </h3>
-            {footerData.companyInfo?.description && (
-              <p className="text-gray-300 mb-4">{footerData.companyInfo.description}</p>
-            )}
-            <div className="space-y-2 text-sm text-gray-300">
-              {footerData.companyInfo?.address && <p>{footerData.companyInfo.address}</p>}
-              {footerData.companyInfo?.phone && (
-                <p>
-                  <a href={`tel:${footerData.companyInfo.phone}`} className="hover:text-white transition-colors">
-                    {footerData.companyInfo.phone}
-                  </a>
-                </p>
+          <div className="lg:col-span-2">
+            <div className="flex items-center gap-3 mb-6">
+              {convertedLogoUrl ? (
+                <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
+                  <img
+                    src={convertedLogoUrl}
+                    alt={brandName || 'Logo'}
+                    className="w-full h-full object-contain rounded-lg"
+                    referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'flex';
+                    }}
+                  />
+                  <div className="w-10 h-10 rounded-xl bg-brand-primary items-center justify-center hidden">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                  </div>
+                </div>
+              ) : (
+                <div className="w-10 h-10 rounded-xl bg-brand-primary flex items-center justify-center">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
               )}
-              {footerData.companyInfo?.email && (
-                <p>
-                  <a href={`mailto:${footerData.companyInfo.email}`} className="hover:text-white transition-colors">
-                    {footerData.companyInfo.email}
+              <h3 className="text-xl font-bold text-gray-900">
+                {brandName || footerData.companyInfo?.name || 'Company'}
+              </h3>
+            </div>
+
+            {footerData.companyInfo?.description && (
+              <p className="text-gray-600 mb-6 leading-relaxed max-w-md">
+                {footerData.companyInfo.description}
+              </p>
+            )}
+
+            <div className="space-y-3">
+              {(contactPhone || footerData.companyInfo?.phone) && (
+                <div className="flex items-center gap-3 text-sm">
+                  <svg className="w-5 h-5 text-brand-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                  </svg>
+                  <a href={`tel:${contactPhone || footerData.companyInfo?.phone}`} className="text-gray-600 hover:text-gray-900 transition-colors">
+                    {contactPhone || footerData.companyInfo?.phone}
                   </a>
-                </p>
+                </div>
+              )}
+
+              {(contactEmail || footerData.companyInfo?.email) && (
+                <div className="flex items-center gap-3 text-sm">
+                  <svg className="w-5 h-5 text-brand-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  <a href={`mailto:${contactEmail || footerData.companyInfo?.email}`} className="text-gray-600 hover:text-gray-900 transition-colors">
+                    {contactEmail || footerData.companyInfo?.email}
+                  </a>
+                </div>
               )}
             </div>
           </div>
 
-          {/* Quick Links - Only show if enabled and has links */}
-          {footerData.quickLinks && footerData.quickLinks.enabled && footerData.quickLinks.links && footerData.quickLinks.links.length > 0 && (
+          {/* Quick Links */}
+          {footerData.quickLinks?.enabled && footerData.quickLinks?.links?.length > 0 && (
             <div>
-              <h3 className="text-lg font-semibold mb-4">{footerData.quickLinks.title || 'Quick Links'}</h3>
+              <h4 className="text-gray-900 font-semibold mb-6 flex items-center gap-2">
+                {footerData.quickLinks.title || 'Quick Links'}
+              </h4>
               {renderLinks(footerData.quickLinks.links)}
             </div>
           )}
 
-          {/* Terms - Only show if enabled and has links */}
-          {footerData.terms && footerData.terms.enabled && footerData.terms.links && footerData.terms.links.length > 0 && (
+          {/* Terms */}
+          {footerData.terms?.enabled && footerData.terms?.links?.length > 0 && (
             <div>
-              <h3 className="text-lg font-semibold mb-4">{footerData.terms.title || 'Terms'}</h3>
+              <h4 className="text-gray-900 font-semibold mb-6 flex items-center gap-2">
+                {footerData.terms.title || 'Legal'}
+              </h4>
               {renderLinks(footerData.terms.links)}
             </div>
           )}
         </div>
 
-        {/* Social Media and Copyright in one row */}
-        <div className="mt-8 pt-8 border-t border-gray-700">
-          <div className="flex flex-col md:flex-row justify-between items-center">
+        {/* Bottom Bar */}
+        <div className="py-8 border-t border-gray-200">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
             {/* Copyright */}
             {footerData.copyright?.text && (
-              <p className="text-gray-300 text-sm mb-4 md:mb-0">
+              <p className="text-gray-500 text-sm">
                 {footerData.copyright.text}
               </p>
             )}
-            
-            {/* Copyright Links - positioned in center */}
-            {footerData.copyright?.links && footerData.copyright.links.length > 0 && (
-              <div className="flex space-x-4 text-sm">
+
+            {/* Copyright Links */}
+            {footerData.copyright?.links?.length > 0 && (
+              <div className="flex items-center gap-4 text-sm">
                 {footerData.copyright.links.filter(link => link.enabled).map((link, index) => (
                   <Link
                     key={index}
                     to={link.url}
-                    onClick={() => {
-                      setTimeout(() => {
-                        window.scrollTo({
-                          top: 0,
-                          left: 0,
-                          behavior: 'smooth'
-                        });
-                      }, 50);
-                    }}
-                    className="text-gray-300 hover:text-white transition-colors duration-200"
+                    onClick={handleLinkClick}
+                    className="text-gray-500 hover:text-gray-900 transition-colors"
                   >
                     {link.text}
                   </Link>
                 ))}
               </div>
             )}
-            
-            {/* Social Media Icons - positioned on the far right */}
+
+            {/* Social Media Icons */}
             {footerData.socialMedia?.enabled && footerData.socialMedia?.links && Object.keys(footerData.socialMedia.links).length > 0 && (
-              <div className="flex space-x-4">
+              <div className="flex items-center gap-2">
                 {Object.entries(footerData.socialMedia.links).map(([platform, data]) => {
-                  // Skip if data is invalid or URL is missing
-                  if (!data || !data.enabled || !data.url) {
-                    if (data) {
-                      console.log(`Skipping ${platform}: enabled=${data.enabled}, url=${data.url}`);
-                    }
-                    return null;
-                  }
-                  
-                  const brandColors = {
-                    facebook: 'text-blue-500 hover:text-blue-400',
-                    twitter: 'text-blue-400 hover:text-blue-300',
-                    instagram: 'text-pink-500 hover:text-pink-400',
-                    linkedin: 'text-blue-600 hover:text-blue-500',
-                    youtube: 'text-red-500 hover:text-red-400'
-                  };
-                  
+                  if (!data || !data.enabled || !data.url) return null;
+
                   return (
                     <a
                       key={platform}
                       href={data.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={`cursor-pointer transition-colors duration-200 ${brandColors[platform] || 'text-gray-300 hover:text-white'}`}
+                      className="w-10 h-10 cursor-pointer rounded-xl bg-white border border-gray-200 flex items-center justify-center text-gray-600 hover:text-white hover:bg-gray-900 hover:border-gray-900 transition-all duration-300"
                       title={platform.charAt(0).toUpperCase() + platform.slice(1)}
                       aria-label={`Visit our ${platform} page`}
                     >
@@ -213,6 +231,9 @@ const Footer = () => {
           </div>
         </div>
       </div>
+
+      {/* Bottom Brand Line */}
+      <div className="h-1 bg-brand-primary"></div>
     </footer>
   );
 };
