@@ -24,6 +24,7 @@ import chatbotRoutes from './chatbot.js';
 import coldEmailRoutes from './coldEmail.js';
 import emailCampaignRoutes from './emailCampaign.js';
 import emailConfigRoutes from './emailConfig.js';
+import webinarRoutes from './webinarRoutes.js';
 import policyDocsRoutes from './policyDocs.js';
 
 const router = express.Router();
@@ -107,8 +108,7 @@ router.use('/email-campaigns', emailCampaignRoutes);
 
 // Mount email config routes
 router.use('/email-config', emailConfigRoutes);
-
-// Mount policy docs routes
+router.use('/webinar', webinarRoutes);
 router.use('/policy-docs', policyDocsRoutes);
 
 export default router; 

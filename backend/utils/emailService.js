@@ -2,21 +2,17 @@ import nodemailer from 'nodemailer';
 import { getDecryptedPassword } from '../controllers/emailConfigController.js';
 import axios from 'axios';
 
-// Check if email is configured for a user (without throwing errors)
+// Check if email is configured for a user
 export const isEmailConfigured = async (userId) => {
   try {
-    if (!userId) {
-      return { configured: false, error: 'User ID is required' };
-    }
+    if (!userId) return { configured: false, error: 'User ID is required' };
 
+    // Dynamic import to avoid circular dependency issues
     const EmailConfig = (await import('../models/EmailConfig.js')).default;
     const config = await EmailConfig.findByUserId(userId);
 
-    if (!config) {
-      return { configured: false };
-    }
+    if (!config) return { configured: false };
 
-    // Check if both email and password exist
     if (config.fromEmail && config.appPassword) {
       return { configured: true, email: config.fromEmail };
     }
@@ -28,31 +24,18 @@ export const isEmailConfigured = async (userId) => {
   }
 };
 
-// Create and configure nodemailer transporter
+// Create transporter for a specific user
 const createTransporter = async (userId) => {
   try {
-    if (!userId) {
-      return { error: 'User ID is required to create email transporter', notConfigured: true };
-    }
+    if (!userId) return { error: 'User ID is required', notConfigured: true };
 
-    console.log(`[EMAIL SERVICE] Creating transporter for userId: ${userId}`);
-
-    // Get email config from database using the static method
     const EmailConfig = (await import('../models/EmailConfig.js')).default;
     const config = await EmailConfig.findByUserId(userId);
 
-    if (!config) {
-      console.log(`[EMAIL SERVICE] No email config found for userId: ${userId}`);
-      return { error: 'Email configuration not found. Please configure your email settings first.', notConfigured: true };
-    }
+    if (!config) return { error: 'Email configuration not found.', notConfigured: true };
 
-    // Verify the config belongs to the requested user (extra security)
-    if (config.userId !== userId) {
-      console.error(`[EMAIL SERVICE] Security violation: Config userId (${config.userId}) does not match requested userId (${userId})`);
-      return { error: 'Access denied: Invalid email configuration', notConfigured: true };
-    }
+    if (config.userId !== userId) return { error: 'Access denied', notConfigured: true };
 
-    // Decrypt the app password
     const appPassword = await getDecryptedPassword(userId);
 
     if (!appPassword) {
@@ -89,23 +72,17 @@ export const sendEmail = async (userId, recipientEmail, subject, htmlContent, re
   try {
     const result = await createTransporter(userId);
 
-    // Check if transporter creation failed
     if (result.error) {
-      console.log(`[EMAIL SERVICE] Cannot send email - ${result.error}`);
-      return {
-        success: false,
-        error: result.error,
-        notConfigured: result.notConfigured
-      };
+      return { success: false, error: result.error, notConfigured: result.notConfigured };
     }
 
     const { transporter, fromEmail } = result;
-
-    // Personalize content by replacing placeholders
+    
+    // Simple template replacement
     let personalizedContent = htmlContent;
     if (recipientName) {
-      personalizedContent = htmlContent.replace(/\{name\}/gi, recipientName);
-      personalizedContent = personalizedContent.replace(/\{recipient_name\}/gi, recipientName);
+      personalizedContent = htmlContent.replace(/\{name\}/gi, recipientName)
+                                       .replace(/\{recipient_name\}/gi, recipientName);
     }
 
     const mailOptions = {
@@ -188,26 +165,16 @@ export const sendEmail = async (userId, recipientEmail, subject, htmlContent, re
     }
 
     const info = await transporter.sendMail(mailOptions);
-
-    console.log('Email sent successfully:', info.messageId);
-    return {
-      success: true,
-      messageId: info.messageId,
-      response: info.response
-    };
+    return { success: true, messageId: info.messageId };
   } catch (error) {
     console.error('Error sending email:', error);
-    return {
-      success: false,
-      error: error.message
-    };
+    return { success: false, error: error.message };
   }
 };
 
-// Send emails to multiple recipients
+// Send Bulk Emails
 export const sendBulkEmails = async (userId, recipients, subject, htmlContent) => {
   const results = [];
-
   for (const recipient of recipients) {
     try {
       const result = await sendEmail(
@@ -217,24 +184,11 @@ export const sendBulkEmails = async (userId, recipients, subject, htmlContent) =
         htmlContent,
         recipient.name
       );
-
-      results.push({
-        email: recipient.email,
-        name: recipient.name,
-        ...result
-      });
-
-      // Add a small delay between emails to avoid rate limiting
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      results.push({ email: recipient.email, name: recipient.name, ...result });
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Rate limit safety
     } catch (error) {
-      results.push({
-        email: recipient.email,
-        name: recipient.name,
-        success: false,
-        error: error.message
-      });
+      results.push({ email: recipient.email, name: recipient.name, success: false, error: error.message });
     }
   }
-
   return results;
 };

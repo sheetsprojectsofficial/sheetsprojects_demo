@@ -50,6 +50,7 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import "./App.css";
 import DynamicPortfolio from "./components/Portfolios/DynamicPortfolio";
+import Webinar from "./components/Webinar";
 
 function App() {
   return (
@@ -158,6 +159,7 @@ function App() {
                                 path="*"
                                 element={<Navigate to="/" replace />}
                               />
+                              <Route path="/webinar" element={<Webinar />} />
                             </Routes>
                           </div>
                           <Footer />

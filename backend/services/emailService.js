@@ -39,7 +39,91 @@ const createTransporter = () => {
 };
 
 // Email templates
-const createOrderConfirmationEmail = (customerInfo, productInfo, orderId, isFree, productType = 'Soft', settings = {}) => {
+// ==========================================
+// 1. WEBINAR CONFIRMATION (NEW)
+// ==========================================
+const createWebinarConfirmationEmail = (name, webinarTitle, webinarDate, meetLink) => {
+  const subject = `Registration Confirmed: ${webinarTitle}`;
+  
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; line-height: 1.6; }
+        .container { max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
+        .header { background-color: #2563eb; color: white; padding: 30px 20px; text-align: center; }
+        .content { padding: 30px 20px; background-color: #ffffff; }
+        .details-box { background-color: #f8fafc; border-left: 4px solid #2563eb; padding: 20px; margin: 25px 0; border-radius: 4px; }
+        .btn { display: inline-block; background-color: #2563eb; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; margin-top: 10px; }
+        .footer { background-color: #f1f5f9; padding: 20px; text-align: center; font-size: 12px; color: #64748b; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1 style="margin:0;">You're In! 🎉</h1>
+        </div>
+        <div class="content">
+          <p>Hi <strong>${name}</strong>,</p>
+          <p>Your registration for <strong>${webinarTitle}</strong> has been confirmed.</p>
+          
+          <div class="details-box">
+            <h3 style="margin-top:0; color: #2563eb;">📅 Event Details</h3>
+            <p style="margin: 5px 0;"><strong>Date:</strong> ${webinarDate}</p>
+            ${meetLink ? `<p style="margin: 5px 0;"><strong>Link:</strong> <a href="${meetLink}" style="color:#2563eb;">Google Meet Link</a></p>` : ''}
+          </div>
+
+          ${meetLink ? `
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${meetLink}" class="btn">Join Webinar</a>
+              <p style="font-size: 13px; color: #666; margin-top: 10px;">(Please join 5 minutes early)</p>
+            </div>
+          ` : ''}
+
+          <p>We look forward to seeing you there!</p>
+          <p>Best regards,<br>The SheetsProjects Team</p>
+        </div>
+        <div class="footer">
+          <p>&copy; ${new Date().getFullYear()} SheetsProjects.com. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return { subject, html };
+};
+
+export const sendWebinarConfirmationEmail = async (userEmail, userName, webinarTitle, webinarDate, meetLink) => {
+  try {
+    const transporter = createTransporter();
+    const emailContent = createWebinarConfirmationEmail(userName, webinarTitle, webinarDate, meetLink);
+
+    const mailOptions = {
+      from: {
+        name: 'SheetsProjects Team',
+        address: process.env.EMAIL_USER || 'sheetsprojectsofficial@gmail.com'
+      },
+      to: userEmail,
+      subject: emailContent.subject,
+      html: emailContent.html
+    };
+
+    console.log(`Sending webinar email to: ${userEmail}`);
+    await transporter.sendMail(mailOptions);
+    return { success: true };
+  } catch (error) {
+    console.error('Error sending webinar email:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// ==========================================
+// 2. ORDER CONFIRMATION (EXISTING)
+// ==========================================
+
+const createOrderConfirmationEmail = (customerInfo, productInfo, orderId, isFree, productType = 'Soft') => {
   // Get dynamic values from settings with fallbacks
   const brandName = getSettingValue(settings, 'Brand Name', 'SheetsProjects.com');
   const supportEmail = getSettingValue(settings, 'Support Email', process.env.EMAIL_USER || 'support@example.com');
@@ -124,7 +208,7 @@ const createOrderConfirmationEmail = (customerInfo, productInfo, orderId, isFree
         <p>We have received your order and are excited to help you with your Google Sheets project! ${
           isPhysical
             ? 'Your order is being processed and will be shipped to your address soon.'
-            : (isFree ? 'Your free resource will be available on our website shortly.' : 'Your purchase has been confirmed and the solution will be available on our website.')
+            : (isFree ? 'Your free resource will be available on our website shortly.' : 'Your purchase has been confirmed.')
         }</p>
 
         <div class="order-details">
@@ -134,27 +218,7 @@ const createOrderConfirmationEmail = (customerInfo, productInfo, orderId, isFree
           <p><strong>Description:</strong> ${productInfo.summary}</p>
           <p><strong>Product Type:</strong> ${productType === 'Physical' ? '📦 Physical Product' : productType === 'Soft' ? '💾 Digital Product' : '📦💾 Physical + Digital'}</p>
           <p><strong>Amount:</strong> ${isFree ? '₹0 (Free)' : `₹${productInfo.totalAmount || 0}`}</p>
-          <p><strong>Order Date:</strong> ${new Date().toLocaleDateString('en-IN', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-          })}</p>
         </div>
-
-        <h3>📞 What's Next?</h3>
-        <ul>
-          <li>✅ Your order has been received and is being processed</li>
-          ${isPhysical
-            ? `<li>📦 Your order will be packed and shipped to the address you provided</li>
-               <li>🚚 You will receive shipping updates via email and can track your order status on our website</li>
-               <li>📱 Check your email regularly for delivery updates</li>`
-            : `<li>🔗 You will receive the solution link to access it on our website within <strong>12 hours</strong></li>
-               <li>📱 Check your email regularly for updates</li>`
-          }
-          <li>🤝 Our team will contact you if any additional information is needed</li>
-        </ul>
 
         <div class="contact-info">
           <h3>💬 Need Help?</h3>
@@ -213,7 +277,6 @@ const createOrderConfirmationEmail = (customerInfo, productInfo, orderId, isFree
   return { subject, html, text };
 };
 
-// Email service functions
 export const sendOrderConfirmationEmail = async (customerInfo, productInfo, orderId, isFree = true, productType = 'Soft') => {
   try {
     // Fetch settings from database
@@ -236,22 +299,13 @@ export const sendOrderConfirmationEmail = async (customerInfo, productInfo, orde
 
     console.log('Sending order confirmation email to:', customerInfo.email);
     const result = await transporter.sendMail(mailOptions);
-    console.log('Order confirmation email sent successfully:', result.messageId);
-
-    return {
-      success: true,
-      messageId: result.messageId
-    };
+    return { success: true, messageId: result.messageId };
   } catch (error) {
     console.error('Error sending order confirmation email:', error);
-    return {
-      success: false,
-      error: error.message
-    };
+    return { success: false, error: error.message };
   }
 };
 
-// Send notification email to admin
 export const sendAdminOrderNotification = async (customerInfo, productInfo, orderId, productType = 'Soft') => {
   try {
     // Fetch settings from database
@@ -270,28 +324,19 @@ export const sendAdminOrderNotification = async (customerInfo, productInfo, orde
         <p><strong>Order ID:</strong> ${orderId}</p>
         <p><strong>Customer:</strong> ${customerInfo.fullName}</p>
         <p><strong>Email:</strong> ${customerInfo.email}</p>
-        <p><strong>Phone:</strong> ${customerInfo.phoneNumber}</p>
-        ${customerInfo.address ? `<p><strong>Address:</strong> ${customerInfo.address}</p>` : ''}
         <p><strong>Product:</strong> ${productInfo.title}</p>
-        <p><strong>Product Type:</strong> ${productType === 'Physical' ? '📦 Physical Product' : productType === 'Soft' ? '💾 Digital Product' : '📦💾 Physical + Digital'}</p>
-        <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>
-
-        ${isPhysical
-          ? '<p>Please process this order and prepare it for shipping to the customer address.</p>'
-          : '<p>Please process this order and make the solution available on the website, then send the access link to the customer.</p>'
-        }
+        <p><strong>Type:</strong> ${isPhysical ? 'Physical' : 'Digital'}</p>
       `
     };
 
     await transporter.sendMail(adminEmailOptions);
     console.log('Admin notification sent successfully');
-
   } catch (error) {
     console.error('Error sending admin notification:', error);
   }
 };
 
-// Generic send email function
+// Generic Send Email
 export const sendEmail = async (to, subject, html) => {
   try {
     // Fetch settings from database
@@ -299,7 +344,6 @@ export const sendEmail = async (to, subject, html) => {
     const brandName = getSettingValue(settings, 'Brand Name', 'SheetsProjects.com');
 
     const transporter = createTransporter();
-
     const mailOptions = {
       from: {
         name: brandName,
@@ -309,26 +353,17 @@ export const sendEmail = async (to, subject, html) => {
       subject: subject,
       html: html
     };
-
-    console.log('Sending email to:', to);
     const result = await transporter.sendMail(mailOptions);
-    console.log('Email sent successfully:', result.messageId);
-
-    return {
-      success: true,
-      messageId: result.messageId
-    };
+    return { success: true, messageId: result.messageId };
   } catch (error) {
     console.error('Error sending email:', error);
-    return {
-      success: false,
-      error: error.message
-    };
+    return { success: false, error: error.message };
   }
 };
 
 export default {
   sendOrderConfirmationEmail,
   sendAdminOrderNotification,
-  sendEmail
+  sendEmail,
+  sendWebinarConfirmationEmail // <--- Ensure this is exported
 };
