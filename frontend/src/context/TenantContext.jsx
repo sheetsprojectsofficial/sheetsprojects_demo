@@ -147,6 +147,7 @@ export const TenantProvider = ({ children }) => {
 
   // Check if a feature is enabled
   // STRICT: Only returns true if feature is explicitly enabled
+  // Case-insensitive: checks both exact match and lowercase version
   const hasFeature = (featureName) => {
     // If in tenant mode but no config yet (loading), return false
     if (tenantSlug && !tenantConfig) {
@@ -156,9 +157,22 @@ export const TenantProvider = ({ children }) => {
     if (!tenantSlug) {
       return true;
     }
-    // If tenant config exists, check features
+    // If tenant config exists, check features (case-insensitive)
     if (tenantConfig?.features) {
-      return tenantConfig.features[featureName] === true;
+      // Try exact match first
+      if (tenantConfig.features[featureName] === true) {
+        return true;
+      }
+      // Try lowercase version (API returns lowercase keys)
+      const lowerFeature = featureName.charAt(0).toLowerCase() + featureName.slice(1);
+      if (tenantConfig.features[lowerFeature] === true) {
+        return true;
+      }
+      // Try fully lowercase
+      if (tenantConfig.features[featureName.toLowerCase()] === true) {
+        return true;
+      }
+      return false;
     }
     // Default to false for tenant mode
     return false;
