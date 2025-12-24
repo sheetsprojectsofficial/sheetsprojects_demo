@@ -11,19 +11,39 @@ const CRMTable = ({
   onSave,
   onFieldChange,
   onDelete,
-  onImageClick
+  onImageClick,
+  selectedIds = [],
+  onSelectChange,
+  onSelectAll
 }) => {
+  const allSelected = entries.length > 0 && selectedIds.length === entries.length;
+  const someSelected = selectedIds.length > 0 && selectedIds.length < entries.length;
+
   return (
     <div className="w-full overflow-auto max-h-[calc(100vh-250px)] border border-gray-200 rounded-lg shadow-md bg-white">
-      <table className="w-full border-collapse" style={{ minWidth: '2200px' }}>
+      <table className="w-full border-collapse" style={{ minWidth: '2300px' }}>
         <thead className="sticky top-0 z-10 bg-gray-50">
           {/* First Header Row - Main Groups */}
           <tr className="border-b border-gray-300">
+            <th rowSpan="2" className="px-3 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200 whitespace-nowrap bg-gray-50 w-[50px] align-middle">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                ref={(el) => {
+                  if (el) el.indeterminate = someSelected;
+                }}
+                onChange={(e) => onSelectAll && onSelectAll(e.target.checked)}
+                className="w-4 h-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500 cursor-pointer"
+              />
+            </th>
             <th rowSpan="2" className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200 whitespace-nowrap bg-gray-50 w-[60px] align-middle">
               S.NO.
             </th>
             <th rowSpan="2" className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200 whitespace-nowrap bg-gray-50 w-[100px] align-middle">
               IMAGE
+            </th>
+            <th rowSpan="2" className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200 whitespace-nowrap bg-gray-50 w-[100px] align-middle">
+              STATUS
             </th>
             <th rowSpan="2" className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200 whitespace-nowrap bg-gray-50 w-[150px] align-middle">
               COMPANY NAME
@@ -97,6 +117,8 @@ const CRMTable = ({
               onFieldChange={onFieldChange}
               onDelete={onDelete}
               onImageClick={onImageClick}
+              isSelected={selectedIds.includes(entry._id)}
+              onSelectChange={onSelectChange}
             />
           ))}
         </tbody>

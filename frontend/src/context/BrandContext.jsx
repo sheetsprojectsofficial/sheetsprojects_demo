@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { injectThemeStyles, forceThemeUpdate } from '../utils/themeUtils';
+import { apiFetch, getApiUrl } from '../utils/api';
 
 const BrandContext = createContext();
+const API_URL = getApiUrl();
 
 export const useBrand = () => {
   const context = useContext(BrandContext);
@@ -116,8 +118,8 @@ export const BrandProvider = ({ children }) => {
       
       // Fetch from both hero and settings
       const [heroResponse, settingsResponse] = await Promise.all([
-        fetch(`${import.meta.env.VITE_API_URL}/hero`),
-        fetch(`${import.meta.env.VITE_API_URL}/settings`)
+        apiFetch(`${API_URL}/hero`),
+        apiFetch(`${API_URL}/settings`)
       ]);
       
       const heroData = await heroResponse.json();

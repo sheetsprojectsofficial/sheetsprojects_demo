@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
+import { apiFetch, getApiUrl } from '../utils/api';
 
 const CartContext = createContext();
+const API_URL = getApiUrl();
 
 export const useCart = () => {
   const context = useContext(CartContext);
@@ -31,7 +33,7 @@ export const CartProvider = ({ children }) => {
     setLoading(true);
     try {
       const token = await user.getIdToken();
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/cart/${user.uid}`, {
+      const response = await apiFetch(`${API_URL}/cart/${user.uid}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -57,7 +59,7 @@ export const CartProvider = ({ children }) => {
     setLoading(true);
     try {
       const token = await user.getIdToken();
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/cart/${user.uid}/add`, {
+      const response = await apiFetch(`${API_URL}/cart/${user.uid}/add`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -92,7 +94,7 @@ export const CartProvider = ({ children }) => {
     setLoading(true);
     try {
       const token = await user.getIdToken();
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/cart/${user.uid}/item/${itemId}`, {
+      const response = await apiFetch(`${API_URL}/cart/${user.uid}/item/${itemId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -116,7 +118,7 @@ export const CartProvider = ({ children }) => {
     setLoading(true);
     try {
       const token = await user.getIdToken();
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/cart/${user.uid}/item/${itemId}`, {
+      const response = await apiFetch(`${API_URL}/cart/${user.uid}/item/${itemId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -143,7 +145,7 @@ export const CartProvider = ({ children }) => {
     setLoading(true);
     try {
       const token = await user.getIdToken();
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/cart/${user.uid}/clear`, {
+      const response = await apiFetch(`${API_URL}/cart/${user.uid}/clear`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

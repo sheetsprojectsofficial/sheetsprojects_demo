@@ -1,7 +1,9 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useAuth } from './AuthContext';
+import { apiFetch, getApiUrl } from '../utils/api';
 
 const NavigationContext = createContext();
+const API_URL = getApiUrl();
 
 export const useNavigation = () => {
   const context = useContext(NavigationContext);
@@ -31,7 +33,7 @@ export const NavigationProvider = ({ children }) => {
   const fetchNavigation = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/navigation`);
+      const response = await apiFetch(`${API_URL}/navigation`);
       const data = await response.json();
       if (data.success) {
         setNavigationItems(data.navigation);
@@ -48,7 +50,7 @@ export const NavigationProvider = ({ children }) => {
     try {
       const token = await user?.getIdToken();
       
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/navigation`, {
+      const response = await apiFetch(`${API_URL}/navigation`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

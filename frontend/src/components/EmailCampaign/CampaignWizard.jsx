@@ -5,7 +5,7 @@ import Step3TestEmail from './WizardSteps/Step3TestEmail';
 import Step4Attachments from './WizardSteps/Step4Attachments';
 import Step5Preview from './WizardSteps/Step5Preview';
 
-const CampaignWizard = ({ onCancel, onComplete, editingCampaign, initialStep = 1 }) => {
+const CampaignWizard = ({ onCancel, onComplete, editingCampaign, initialStep = 1, recipientSourceFilter = null }) => {
   const [currentStep, setCurrentStep] = useState(initialStep);
 
   // Campaign data state
@@ -20,14 +20,19 @@ const CampaignWizard = ({ onCancel, onComplete, editingCampaign, initialStep = 1
     testEmail: '',
     testEmailSent: false,
     attachments: [],
-    recipients: []
+    recipients: [],
+    allRecipients: [] // Store all recipients for reference
   });
 
   // On mount, load editing campaign data if available
   useEffect(() => {
     if (editingCampaign) {
-      console.log('Loading campaign for editing:', editingCampaign);
-      const recipientEmails = editingCampaign.recipients?.map(r => r.email).join('\n') || '';
+      // Filter recipients based on source if filter is provided
+      let filteredRecipients = editingCampaign.recipients || [];
+      if (recipientSourceFilter) {
+        filteredRecipients = filteredRecipients.filter(r => r.source === recipientSourceFilter);
+      }
+      const recipientEmails = filteredRecipients.map(r => r.email).join('\n') || '';
 
       setCampaignData({
         campaignName: editingCampaign.name || '',
@@ -40,7 +45,8 @@ const CampaignWizard = ({ onCancel, onComplete, editingCampaign, initialStep = 1
         testEmail: '',
         testEmailSent: false,
         attachments: editingCampaign.attachments || [],
-        recipients: recipientEmails
+        recipients: recipientEmails,
+        allRecipients: editingCampaign.recipients || [] // Store all for reference
       });
 
       setCurrentStep(initialStep);
@@ -206,6 +212,7 @@ const CampaignWizard = ({ onCancel, onComplete, editingCampaign, initialStep = 1
               onPrevious={handlePrevious}
               onComplete={onComplete}
               editingCampaign={editingCampaign}
+              recipientSourceFilter={recipientSourceFilter}
             />
           )}
         </div>

@@ -126,12 +126,12 @@ export const useCRM = () => {
     const response = await axios.post(
       `${API_BASE_URL}/email-campaigns/crm-entries`,
       {
-        companyName: contactData.companyName.trim() || 'N/A',
-        contactPerson: contactData.contactPerson.trim() || 'N/A',
-        designation: contactData.designation.trim() || 'N/A',
-        mobileNumber: contactData.mobileNumber.trim() || 'N/A',
-        landline: contactData.landline.trim() || 'N/A',
-        email: contactData.email.trim().toLowerCase(),
+        companyName: contactData.companyName?.trim() || 'N/A',
+        contactPerson: contactData.contactPerson?.trim() || 'N/A',
+        designation: contactData.designation?.trim() || 'N/A',
+        mobileNumber: contactData.mobileNumber?.trim() || 'N/A',
+        landline: contactData.landline?.trim() || 'N/A',
+        email: contactData.email?.trim()?.toLowerCase() || 'N/A',
       },
       {
         headers: {
@@ -150,6 +150,26 @@ export const useCRM = () => {
     }
   };
 
+  const bulkDeleteContacts = async (ids) => {
+    const token = await getToken();
+    const response = await axios.post(
+      `${API_BASE_URL}/email-campaigns/crm-entries/bulk-delete`,
+      { ids },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (response.data.success) {
+      setCrmEntries(crmEntries.filter((entry) => !ids.includes(entry._id)));
+      return true;
+    } else {
+      throw new Error(response.data.message || 'Failed to delete contacts');
+    }
+  };
+
   return {
     crmEntries,
     loading,
@@ -162,5 +182,7 @@ export const useCRM = () => {
     handleSave,
     deleteContact,
     createContact,
+    refreshEntries: fetchCRMEntries,
+    bulkDeleteContacts,
   };
 };

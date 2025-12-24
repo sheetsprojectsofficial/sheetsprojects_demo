@@ -16,6 +16,7 @@ import { LoadingProvider } from "./context/LoadingContext";
 import Navbar from "./components/Navbar";
 import Login from "./components/Login";
 import Dashboard from "./components/Dashboard";
+import { SuperAdminDashboard } from "./components/SuperAdmin";
 import SolutionViewer from "./components/SolutionViewer";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Home from "./components/Home";
@@ -71,6 +72,16 @@ function App() {
                       element={
                         <ProtectedRoute requireAdmin={false}>
                           <Dashboard />
+                        </ProtectedRoute>
+                      }
+                    />
+
+                    {/* Super Admin Dashboard */}
+                    <Route
+                      path="/superadmin-dashboard"
+                      element={
+                        <ProtectedRoute requireAdmin={false}>
+                          <SuperAdminDashboard />
                         </ProtectedRoute>
                       }
                     />
@@ -155,11 +166,11 @@ function App() {
                                 path="/pricing-policy"
                                 element={<PricingPolicy />}
                               />
+                              <Route path="/webinar" element={<Webinar />} />
                               <Route
                                 path="*"
                                 element={<Navigate to="/" replace />}
                               />
-                              <Route path="/webinar" element={<Webinar />} />
                             </Routes>
                           </div>
                           <Footer />

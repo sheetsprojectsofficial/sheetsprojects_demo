@@ -12,7 +12,9 @@ const CRMTableRow = ({
   onSave,
   onFieldChange,
   onDelete,
-  onImageClick
+  onImageClick,
+  isSelected,
+  onSelectChange
 }) => {
   const formatDate = (dateString) => {
     if (!dateString) return '';
@@ -31,10 +33,55 @@ const CRMTableRow = ({
   const inputClass = "w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm text-center";
   const textareaClass = "w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm resize-y min-h-[60px]";
 
-  const rowClass = isEditing ? 'bg-gray-100' : 'bg-white hover:bg-gray-50';
+  // Get row background color based on status
+  const getRowBgClass = () => {
+    if (isEditing) return 'bg-gray-100';
+    if (isSelected) return 'bg-purple-50';
+
+    const status = entry.leadStatus?.toLowerCase();
+    switch (status) {
+      case 'hot':
+        return 'bg-red-100 hover:bg-red-200';
+      case 'cold':
+        return 'bg-orange-100 hover:bg-orange-200';
+      case 'dead':
+        return 'bg-gray-200 hover:bg-gray-300';
+      case 'converted':
+        return 'bg-green-100 hover:bg-green-200';
+      default:
+        return 'bg-white hover:bg-gray-50';
+    }
+  };
+
+  // Get status badge styles
+  const getStatusBadgeClass = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'hot':
+        return 'bg-red-500 text-white';
+      case 'cold':
+        return 'bg-orange-500 text-white';
+      case 'dead':
+        return 'bg-gray-500 text-white';
+      case 'converted':
+        return 'bg-green-500 text-white';
+      default:
+        return 'bg-gray-200 text-gray-600';
+    }
+  };
+
+  const rowClass = getRowBgClass();
 
   return (
     <tr className={`border-b border-gray-200 transition-colors ${rowClass}`}>
+      {/* Checkbox */}
+      <td className="px-3 py-3 border-r border-gray-200 text-center align-middle">
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={(e) => onSelectChange && onSelectChange(entry._id, e.target.checked)}
+          className="w-4 h-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500 cursor-pointer"
+        />
+      </td>
       {/* S.No. */}
       <td className={cellClass}>{index + 1}</td>
 
@@ -51,6 +98,30 @@ const CRMTableRow = ({
           <div className="w-20 h-12 rounded bg-gray-100 text-gray-400 flex items-center justify-center">
             <Image size={20} />
           </div>
+        )}
+      </td>
+
+      {/* Lead Status */}
+      <td className={cellClass}>
+        {isEditing ? (
+          <select
+            value={editedData.leadStatus || ''}
+            onChange={(e) => onFieldChange('leadStatus', e.target.value)}
+            className={`${inputClass} cursor-pointer`}
+          >
+            <option value="">Select Status</option>
+            <option value="Hot">Hot</option>
+            <option value="Cold">Cold</option>
+            <option value="Dead">Dead</option>
+            <option value="Converted">Converted</option>
+          </select>
+        ) : (
+          <span
+            className={`inline-block px-3 py-1 rounded-full text-xs font-semibold cursor-pointer ${getStatusBadgeClass(entry.leadStatus)}`}
+            onClick={() => onEdit(entry)}
+          >
+            {entry.leadStatus || 'N/A'}
+          </span>
         )}
       </td>
 

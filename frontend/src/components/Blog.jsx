@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSettings } from '../context/SettingsContext';
+import { apiFetch, getApiUrl } from '../utils/api';
+
+const API_URL = getApiUrl();
 
 const Blog = () => {
   const navigate = useNavigate();
@@ -68,7 +71,7 @@ const Blog = () => {
       if (search) params.append('search', search);
       if (userId) params.append('userId', userId);
       
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/blog?${params}`);
+      const response = await apiFetch(`${API_URL}/blog?${params}`);
       const data = await response.json();
       
       if (data.success) {
@@ -151,7 +154,7 @@ const Blog = () => {
       const isCurrentlyLiked = likedBlogs.has(blogId);
       const endpoint = isCurrentlyLiked ? 'unlike' : 'like';
       
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/blog/${blogId}/${endpoint}`, {
+      const response = await apiFetch(`${API_URL}/blog/${blogId}/${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,7 +1,9 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useAuth } from './AuthContext';
+import { apiFetch, getApiUrl } from '../utils/api';
 
 const SubNavbarContext = createContext();
+const API_URL = getApiUrl();
 
 export const useSubNavbar = () => {
   const context = useContext(SubNavbarContext);
@@ -32,7 +34,7 @@ export const SubNavbarProvider = ({ children }) => {
   const fetchSubNavbar = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/subnavbar`);
+      const response = await apiFetch(`${API_URL}/subnavbar`);
       const data = await response.json();
       if (data.success) {
         setSubNavbarData(data.subNavbar);
@@ -49,7 +51,7 @@ export const SubNavbarProvider = ({ children }) => {
     try {
       const token = await user?.getIdToken();
       
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/subnavbar`, {
+      const response = await apiFetch(`${API_URL}/subnavbar`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

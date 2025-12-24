@@ -1,16 +1,76 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import axios from 'axios';
 import { useAuth } from '../../../context/AuthContext';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5004/api';
 
-const Step5Preview = ({ campaignData, updateCampaignData, onPrevious, onComplete, editingCampaign }) => {
+const Step5Preview = ({ campaignData, updateCampaignData, onPrevious, onComplete, editingCampaign, recipientSourceFilter = null }) => {
   const { getToken } = useAuth();
-  const initialRecipients = typeof campaignData.recipients === 'string'
-    ? campaignData.recipients
-    : (Array.isArray(campaignData.recipients) ? campaignData.recipients.join('\n') : '');
-  const [recipients, setRecipients] = useState(initialRecipients);
+
+  // Active filter state - can be changed by user via tabs
+  const [activeFilter, setActiveFilter] = useState(recipientSourceFilter);
+
+  // Handle different recipient formats: string, array of strings, or array of objects
+  const getRecipientsFromData = (data, filter = null) => {
+    if (!data) return '';
+    if (typeof data === 'string') return data;
+    if (Array.isArray(data)) {
+      // Check if it's an array of objects or strings
+      if (data.length > 0 && typeof data[0] === 'object' && data[0].email) {
+        // Array of recipient objects - filter by source if filter is provided
+        let filtered = data;
+        if (filter) {
+          if (filter === 'manual') {
+            // Manual includes recipients with source='manual' OR no source set (legacy data)
+            filtered = data.filter(r => r.source === 'manual' || !r.source);
+          } else {
+            filtered = data.filter(r => r.source === filter);
+          }
+        }
+        return filtered.map(r => r.email).filter(Boolean).join('\n');
+      }
+      // Array of strings
+      return data.filter(Boolean).join('\n');
+    }
+    return '';
+  };
+
+  // Get counts for each source
+  const getSourceCounts = () => {
+    const recipients = editingCampaign?.recipients || [];
+    return {
+      all: recipients.length,
+      manual: recipients.filter(r => r.source === 'manual' || !r.source).length,
+      leads: recipients.filter(r => r.source === 'leads').length,
+      automation: recipients.filter(r => r.source === 'automation').length,
+    };
+  };
+
+  const sourceCounts = getSourceCounts();
+
+  const [recipients, setRecipients] = useState('');
+
+  // Load recipients whenever filter changes or on initial load
+  useEffect(() => {
+    // Priority 1: Check editingCampaign.recipients directly (for campaigns loaded from DB)
+    if (editingCampaign?.recipients && editingCampaign.recipients.length > 0) {
+      const recipientEmails = getRecipientsFromData(editingCampaign.recipients, activeFilter);
+      setRecipients(recipientEmails);
+      return;
+    }
+
+    // Priority 2: Check campaignData.recipients
+    if (campaignData.recipients) {
+      const recipientEmails = getRecipientsFromData(campaignData.recipients, activeFilter);
+      setRecipients(recipientEmails);
+    }
+  }, [editingCampaign, activeFilter]); // Re-run when filter changes
+
+  // Handle filter change
+  const handleFilterChange = (filter) => {
+    setActiveFilter(filter);
+  };
   const [sending, setSending] = useState(false);
   const [campaignCreated, setCampaignCreated] = useState(false);
   const [extractingEmail, setExtractingEmail] = useState(false);
@@ -310,9 +370,79 @@ const Step5Preview = ({ campaignData, updateCampaignData, onPrevious, onComplete
   return (
     <div>
       <h2 className="text-2xl font-bold text-gray-900 mb-2">Send Campaign</h2>
-      <p className="text-gray-600 mb-6">
+      <p className="text-gray-600 mb-4">
         Add recipients to send your campaign.
       </p>
+
+      {/* Source Filter Tabs - Only show when editing a campaign */}
+      {editingCampaign && (
+        <div className="mb-6">
+          <p className="text-sm text-gray-500 mb-2">Filter recipients by source:</p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => handleFilterChange(null)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+                activeFilter === null
+                  ? 'bg-gray-800 text-white'
+                  : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              All ({sourceCounts.all})
+            </button>
+            <button
+              onClick={() => handleFilterChange('manual')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+                activeFilter === 'manual'
+                  ? 'bg-purple-500 text-white'
+                  : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+                Manual ({sourceCounts.manual})
+              </span>
+            </button>
+            <button
+              onClick={() => handleFilterChange('leads')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+                activeFilter === 'leads'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                From Leads ({sourceCounts.leads})
+              </span>
+            </button>
+            <button
+              onClick={() => handleFilterChange('automation')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+                activeFilter === 'automation'
+                  ? 'bg-green-500 text-white'
+                  : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                From Automation ({sourceCounts.automation})
+              </span>
+            </button>
+          </div>
+          {activeFilter && (
+            <p className="mt-2 text-sm text-blue-600">
+              Showing only {activeFilter === 'manual' ? 'manually added' : activeFilter === 'leads' ? 'leads' : 'automation'} recipients.
+              <button
+                onClick={() => handleFilterChange(null)}
+                className="ml-1 underline cursor-pointer hover:text-blue-800"
+              >
+                Show all
+              </button>
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Recipients */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
@@ -320,29 +450,31 @@ const Step5Preview = ({ campaignData, updateCampaignData, onPrevious, onComplete
             Recipients <span className="text-red-500">*</span>
           </label>
 
-          {/* Visiting Card Upload Button */}
-          <div className="flex flex-col items-end gap-1">
-            <p className="text-xs text-purple-600 font-medium">Upload only front side</p>
-            <div className="flex items-center gap-2">
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleImageUpload}
-                accept="image/*"
-                multiple
-                className="hidden"
-                id="visiting-card-input"
-              />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={extractingEmail}
-                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-sm font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                {extractingEmail ? 'Extracting...' : 'Scan Visiting Cards'}
-              </button>
+          {/* Visiting Card Upload Button - Only show on All or Manual tabs */}
+          {(activeFilter === null || activeFilter === 'manual') && (
+            <div className="flex flex-col items-end gap-1">
+              <p className="text-xs text-purple-600 font-medium">Upload only front side</p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleImageUpload}
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  id="visiting-card-input"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={extractingEmail}
+                  className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-sm font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {extractingEmail ? 'Extracting...' : 'Scan Visiting Cards'}
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Image Preview during extraction */}

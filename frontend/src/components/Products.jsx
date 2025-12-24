@@ -4,6 +4,9 @@ import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '../config/firebase';
 import { useSettings } from '../context/SettingsContext';
 import { useTheme } from '../hooks/useTheme';
+import { apiFetch, getApiUrl } from '../utils/api';
+
+const API_URL = getApiUrl();
 
 const Products = () => {
   const navigate = useNavigate();
@@ -49,7 +52,7 @@ const Products = () => {
     const fetchProductsData = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/products`);
+        const response = await apiFetch(`${API_URL}/products`);
         const data = await response.json();
         
         if (data.success && data.products && Array.isArray(data.products)) {
@@ -83,7 +86,7 @@ const Products = () => {
       
       try {
         const token = await user.getIdToken();
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/orders/user/${encodeURIComponent(user.email)}`, {
+        const response = await apiFetch(`${API_URL}/orders/user/${encodeURIComponent(user.email)}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'

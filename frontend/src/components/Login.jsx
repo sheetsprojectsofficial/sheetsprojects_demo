@@ -5,8 +5,19 @@ import { useNavigate, Link } from 'react-router-dom';
 const Login = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { loginWithGoogle } = useAuth();
+  const { loginWithGoogle, userRole } = useAuth();
   const navigate = useNavigate();
+
+  const getRedirectPath = (role) => {
+    switch (role) {
+      case 'superadmin':
+        return '/superadmin-dashboard';
+      case 'admin':
+        return '/dashboard';
+      default:
+        return '/dashboard';
+    }
+  };
 
   const handleGoogleLogin = async () => {
     setLoading(true);
@@ -15,7 +26,9 @@ const Login = () => {
     try {
       const result = await loginWithGoogle();
       if (result.success) {
-        navigate('/dashboard');
+        // Get the role from localStorage since it was just set
+        const role = localStorage.getItem('userRole');
+        navigate(getRedirectPath(role));
       } else {
         setError(result.error);
       }

@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { apiFetch, getApiUrl } from '../utils/api';
 
 const SettingsContext = createContext();
+const API_URL = getApiUrl();
 
 export const useSettings = () => {
   const context = useContext(SettingsContext);
@@ -19,7 +21,7 @@ export const SettingsProvider = ({ children }) => {
     try {
       setLoading(true);
       
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/settings`);
+      const response = await apiFetch(`${API_URL}/settings`);
       const data = await response.json();
       
       if (data.success) {

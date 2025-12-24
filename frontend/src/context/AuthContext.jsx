@@ -1,14 +1,16 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { 
-  signInWithPopup, 
+import {
+  signInWithPopup,
   GoogleAuthProvider,
-  signOut, 
+  signOut,
   onAuthStateChanged,
   getIdToken
 } from 'firebase/auth';
 import { auth } from '../config/firebase';
+import { apiFetch, getApiUrl } from '../utils/api';
 
 const AuthContext = createContext();
+const API_URL = getApiUrl();
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -42,7 +44,7 @@ export const AuthProvider = ({ children }) => {
       const provider = new GoogleAuthProvider();
       const userCredential = await signInWithPopup(auth, provider);
       const user = userCredential.user;
-      
+
       // Store user data in localStorage
       localStorage.setItem('user', JSON.stringify({
         uid: user.uid,
@@ -51,7 +53,7 @@ export const AuthProvider = ({ children }) => {
       }));
 
       // Get user role from backend
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/login`, {
+      const response = await apiFetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -64,6 +66,17 @@ export const AuthProvider = ({ children }) => {
       });
 
       const data = await response.json();
+
+      // Check if user is disabled
+      if (data.isDisabled) {
+        await signOut(auth);
+        localStorage.removeItem('user');
+        localStorage.removeItem('userRole');
+        setUser(null);
+        setUserRole(null);
+        return { success: false, error: data.message, isDisabled: true };
+      }
+
       if (data.success) {
         setUserRole(data.user.role);
         localStorage.setItem('userRole', data.user.role);
@@ -95,6 +108,11 @@ export const AuthProvider = ({ children }) => {
     return userRole === 'admin';
   };
 
+  // Check if user is superadmin
+  const isSuperAdmin = () => {
+    return userRole === 'superadmin';
+  };
+
   // Check if user is authenticated
   const isAuthenticated = () => {
     return !!user;
@@ -114,7 +132,7 @@ export const AuthProvider = ({ children }) => {
         } else {
           // Fetch user role from backend
           try {
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/user/${user.uid}`);
+            const response = await apiFetch(`${API_URL}/auth/user/${user.uid}`);
             const data = await response.json();
             if (data.success) {
               setUserRole(data.user.role);
@@ -140,6 +158,7 @@ export const AuthProvider = ({ children }) => {
     loginWithGoogle,
     logout,
     isAdmin,
+    isSuperAdmin,
     isAuthenticated,
     getToken,
     loading

@@ -8,6 +8,30 @@ export default defineConfig({
   server: {
     historyApiFallback: true
   },
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+      '@mui/material',
+      '@mui/icons-material',
+      '@emotion/react',
+      '@emotion/styled',
+      'firebase/app',
+      'firebase/auth',
+      'firebase/firestore',
+      'axios',
+      'lucide-react',
+      'react-toastify',
+      'qrcode.react',
+      'jspdf',
+      'html2canvas'
+    ],
+    force: false,
+    esbuildOptions: {
+      target: 'esnext'
+    }
+  },
   build: {
     rollupOptions: {
       output: {

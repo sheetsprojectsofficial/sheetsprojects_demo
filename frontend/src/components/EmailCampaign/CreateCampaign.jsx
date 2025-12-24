@@ -3,7 +3,7 @@ import { toast } from 'react-toastify';
 import axios from 'axios';
 import './EmailCampaign.css';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5004';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5004/api';
 
 const CreateCampaign = ({ onNext, onCancel, editingCampaign }) => {
   const [campaignName, setCampaignName] = useState('');

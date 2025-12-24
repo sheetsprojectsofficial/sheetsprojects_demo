@@ -10,12 +10,17 @@ import Orders from './Orders';
 import CustomerDashboard from './CustomerDashboard';
 import AdminBookings from './AdminBookings';
 import Invoices from './Invoices';
+import EmailFinder from './ColdEmail';
 import EmailCampaign from './EmailCampaign/EmailCampaign';
 import CRMList from './EmailCampaign/CRMList';
+import { AutomationList } from './Automation';
 import { toast } from 'react-toastify';
+import { apiFetch, getApiUrl } from '../utils/api';
+
+const API_URL = getApiUrl();
 
 const Dashboard = () => {
-  const { user, isAdmin, logout } = useAuth();
+  const { user, isAdmin, isSuperAdmin, logout } = useAuth();
   const navigate = useNavigate();
   const { settings } = useSettings();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -27,6 +32,13 @@ const Dashboard = () => {
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || (isAdmin() ? 'landing' : 'purchases'));
   const [syncing, setSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState('');
+
+  // Redirect superadmin to superadmin dashboard
+  useEffect(() => {
+    if (isSuperAdmin()) {
+      navigate('/superadmin-dashboard', { replace: true });
+    }
+  }, [isSuperAdmin, navigate]);
 
   // Persist sidebar collapsed state
   useEffect(() => {
@@ -151,7 +163,7 @@ const Dashboard = () => {
       // Sync Products (just refresh the data)
       setSyncStatus('Syncing products...');
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/products`, { headers });
+        const response = await apiFetch(`${API_URL}/products`, { headers });
         const data = await response.json();
         results.products.success = data.success;
         results.products.message = data.success ? 'Products refreshed' : 'Products failed';
@@ -162,7 +174,7 @@ const Dashboard = () => {
       // Sync Blogs
       setSyncStatus('Syncing blogs from Drive...');
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/blog/admin/sync`, {
+        const response = await apiFetch(`${API_URL}/blog/admin/sync`, {
           method: 'POST',
           headers
         });
@@ -178,7 +190,7 @@ const Dashboard = () => {
       // Sync Books
       setSyncStatus('Syncing books from Drive...');
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/books/admin/sync`, {
+        const response = await apiFetch(`${API_URL}/books/admin/sync`, {
           method: 'POST',
           headers
         });
@@ -194,7 +206,7 @@ const Dashboard = () => {
       // Sync Orders Solution Links
       setSyncStatus('Syncing order solutions...');
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/orders/solution/sync-from-sheets`, {
+        const response = await apiFetch(`${API_URL}/orders/solution/sync-from-sheets`, {
           method: 'POST',
           headers
         });
@@ -210,7 +222,7 @@ const Dashboard = () => {
       // Sync Bookings (refresh)
       setSyncStatus('Refreshing bookings...');
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5004'}/api/bookings`, {
+        const response = await apiFetch(`${API_URL}/bookings`, {
           headers
         });
         const data = await response.json();
@@ -260,8 +272,8 @@ const Dashboard = () => {
   return (
     <div className="h-screen bg-gray-50 flex overflow-hidden">
       {/* Sidebar - Hidden by default on mobile, always visible on desktop */}
-      <div className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} fixed inset-y-0 left-0 z-50 ${sidebarCollapsed ? 'w-20' : 'w-64'} bg-white shadow-2xl transform transition-all duration-300 ease-in-out lg:relative lg:translate-x-0 lg:shadow-sm`}>
-        <div className="h-full flex flex-col relative">
+      <div className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} fixed inset-y-0 left-0 z-50 ${sidebarCollapsed ? 'w-20 overflow-visible' : 'w-64'} bg-white shadow-2xl transform transition-all duration-300 ease-in-out lg:relative lg:translate-x-0 lg:shadow-sm`}>
+        <div className={`h-full flex flex-col relative ${sidebarCollapsed ? 'overflow-visible' : ''}`}>
           {/* Collapse Toggle Button - Desktop only */}
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -310,7 +322,7 @@ const Dashboard = () => {
           </div>
 
           {/* Sidebar Navigation */}
-          <div className="flex-1 overflow-y-auto scroll-smooth" style={{ minHeight: 0 }}>
+          <div className={`flex-1 scroll-smooth ${sidebarCollapsed ? 'overflow-visible' : 'overflow-y-auto'}`} style={{ minHeight: 0 }}>
             {isAdmin() ? (
               <nav className={`${sidebarCollapsed ? 'px-2' : 'px-2'} py-4 space-y-1`}>
                 {!sidebarCollapsed && (
@@ -322,11 +334,15 @@ const Dashboard = () => {
                 {/* Landing Page - Always on top */}
                 <button
                   onClick={() => handleTabChange('landing')}
-                  className={`${activeTab === 'landing' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full`}
-                  title={sidebarCollapsed ? 'Landing Page' : ''}
+                  className={`${activeTab === 'landing' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full relative`}
                 >
                   <span className={`text-lg ${sidebarCollapsed ? '' : 'mr-3'}`}>🏠</span>
                   {!sidebarCollapsed && <span className="flex-1 text-left">Landing Page</span>}
+                  {sidebarCollapsed && (
+                    <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                      Landing Page
+                    </span>
+                  )}
                 </button>
 
                 {/* Dynamic menu items from settings */}
@@ -337,11 +353,15 @@ const Dashboard = () => {
                     <button
                       key={item}
                       onClick={() => handleTabChange(config.tab)}
-                      className={`${activeTab === config.tab ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full`}
-                      title={sidebarCollapsed ? config.label : ''}
+                      className={`${activeTab === config.tab ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full relative`}
                     >
                       <span className={`text-lg ${sidebarCollapsed ? '' : 'mr-3'}`}>{config.icon}</span>
                       {!sidebarCollapsed && <span className="flex-1 text-left">{config.label}</span>}
+                      {sidebarCollapsed && (
+                        <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                          {config.label}
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -350,11 +370,15 @@ const Dashboard = () => {
                 {enabledMenuItems.includes('Products') && (
                   <button
                     onClick={() => handleTabChange('orders')}
-                    className={`${activeTab === 'orders' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full`}
-                    title={sidebarCollapsed ? 'Orders' : ''}
+                    className={`${activeTab === 'orders' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full relative`}
                   >
                     <span className={`text-lg ${sidebarCollapsed ? '' : 'mr-3'}`}>📋</span>
                     {!sidebarCollapsed && <span className="flex-1 text-left">Orders</span>}
+                    {sidebarCollapsed && (
+                      <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                        Orders
+                      </span>
+                    )}
                   </button>
                 )}
 
@@ -368,31 +392,71 @@ const Dashboard = () => {
                 {/* Invoice - Always there */}
                 <button
                   onClick={() => handleTabChange('invoices')}
-                  className={`${activeTab === 'invoices' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full`}
-                  title={sidebarCollapsed ? 'Invoice' : ''}
+                  className={`${activeTab === 'invoices' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full relative`}
                 >
                   <span className={`text-lg ${sidebarCollapsed ? '' : 'mr-3'}`}>🧾</span>
                   {!sidebarCollapsed && <span className="flex-1 text-left">Invoice</span>}
+                  {sidebarCollapsed && (
+                    <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                      Invoice
+                    </span>
+                  )}
+                </button>
+
+                {/* Cold Email Finder - Always there */}
+                <button
+                  onClick={() => handleTabChange('email-finder')}
+                  className={`${activeTab === 'email-finder' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full relative`}
+                >
+                  <span className={`text-lg ${sidebarCollapsed ? '' : 'mr-3'}`}>🔍</span>
+                  {!sidebarCollapsed && <span className="flex-1 text-left">Cold Email Finder</span>}
+                  {sidebarCollapsed && (
+                    <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                      Cold Email Finder
+                    </span>
+                  )}
                 </button>
 
                 {/* Email Campaign - Always there */}
                 <button
                   onClick={() => handleTabChange('email-campaign')}
-                  className={`${activeTab === 'email-campaign' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full`}
-                  title={sidebarCollapsed ? 'Email Campaign' : ''}
+                  className={`${activeTab === 'email-campaign' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full relative`}
                 >
                   <span className={`text-lg ${sidebarCollapsed ? '' : 'mr-3'}`}>📨</span>
                   {!sidebarCollapsed && <span className="flex-1 text-left">Email Campaign</span>}
+                  {sidebarCollapsed && (
+                    <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                      Email Campaign
+                    </span>
+                  )}
                 </button>
 
-                {/* CRM - Always there */}
+                {/* Leads - Always there */}
                 <button
                   onClick={() => handleTabChange('crm')}
-                  className={`${activeTab === 'crm' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full`}
-                  title={sidebarCollapsed ? 'CRM' : ''}
+                  className={`${activeTab === 'crm' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full relative`}
                 >
                   <span className={`text-lg ${sidebarCollapsed ? '' : 'mr-3'}`}>👥</span>
-                  {!sidebarCollapsed && <span className="flex-1 text-left">CRM</span>}
+                  {!sidebarCollapsed && <span className="flex-1 text-left">Leads</span>}
+                  {sidebarCollapsed && (
+                    <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                      Leads
+                    </span>
+                  )}
+                </button>
+
+                {/* Automation - Always there */}
+                <button
+                  onClick={() => handleTabChange('automation')}
+                  className={`${activeTab === 'automation' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full relative`}
+                >
+                  <span className={`text-lg ${sidebarCollapsed ? '' : 'mr-3'}`}>⚡</span>
+                  {!sidebarCollapsed && <span className="flex-1 text-left">Automation</span>}
+                  {sidebarCollapsed && (
+                    <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                      Automation
+                    </span>
+                  )}
                 </button>
               </nav>
             ) : (
@@ -404,11 +468,15 @@ const Dashboard = () => {
                 )}
                 <button
                   onClick={() => handleTabChange('purchases')}
-                  className={`${activeTab === 'purchases' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full`}
-                  title={sidebarCollapsed ? 'My Purchases' : ''}
+                  className={`${activeTab === 'purchases' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full relative`}
                 >
                   <span className={`text-lg ${sidebarCollapsed ? '' : 'mr-3'}`}>🛒</span>
                   {!sidebarCollapsed && <span className="flex-1 text-left">My Purchases</span>}
+                  {sidebarCollapsed && (
+                    <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                      My Purchases
+                    </span>
+                  )}
                 </button>
               </nav>
             )}
@@ -440,8 +508,11 @@ const Dashboard = () => {
                       {activeTab === 'books' && 'Book Management'}
                       {activeTab === 'orders' && 'Orders Management'}
                       {activeTab === 'bookings' && 'Room Bookings Management'}
+                      {activeTab === 'invoices' && 'Invoice Generator'}
+                      {activeTab === 'email-finder' && 'Cold Email Finder'}
                       {activeTab === 'email-campaign' && 'Email Campaign Management'}
-                      {activeTab === 'crm' && 'CRM - Contacts'}
+                      {activeTab === 'crm' && 'Leads - Contacts'}
+                      {activeTab === 'automation' && 'Automation'}
                     </>
                   ) : (
                     'My Purchases'
@@ -456,8 +527,11 @@ const Dashboard = () => {
                       {activeTab === 'books' && 'Manage books from Google Drive folders'}
                       {activeTab === 'orders' && 'View and manage customer orders'}
                       {activeTab === 'bookings' && 'View and manage room bookings'}
+                      {activeTab === 'invoices' && 'Create and download professional invoices'}
+                      {activeTab === 'email-finder' && 'Find cold emails from any website'}
                       {activeTab === 'email-campaign' && 'Create and manage email campaigns'}
                       {activeTab === 'crm' && 'Manage your contacts extracted from visiting cards'}
+                      {activeTab === 'automation' && 'View and manage your lead collection automations'}
                     </>
                   ) : (
                     'View and access your purchased solutions'
@@ -522,7 +596,9 @@ const Dashboard = () => {
           <div className={
             activeTab === 'invoices'
               ? ''
-              : 'py-4 px-4 sm:px-6'
+              : activeTab === 'crm'
+                ? 'px-4 py-0'
+                : 'py-4 px-4 sm:px-6'
           }>
             <div className="max-w-7xl mx-auto">
               {isAdmin() ? (
@@ -534,8 +610,10 @@ const Dashboard = () => {
                   {activeTab === 'books' && <AdminBooks />}
                   {activeTab === 'orders' && <Orders />}
                   {activeTab === 'bookings' && <AdminBookings />}
+                  {activeTab === 'email-finder' && <EmailFinder />}
                   {activeTab === 'email-campaign' && <EmailCampaign />}
                   {activeTab === 'crm' && <CRMList />}
+                  {activeTab === 'automation' && <AutomationList />}
                 </div>
               ) : (
                 <CustomerDashboard />
