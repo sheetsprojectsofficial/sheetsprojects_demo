@@ -146,11 +146,28 @@ export const TenantProvider = ({ children }) => {
   };
 
   // Check if a feature is enabled
+  // STRICT: Only returns true if feature is explicitly enabled
   const hasFeature = (featureName) => {
-    if (!tenantConfig || !tenantConfig.features) {
-      return true; // Default to enabled if no config
+    // If in tenant mode but no config yet (loading), return false
+    if (tenantSlug && !tenantConfig) {
+      return false;
     }
-    return tenantConfig.features[featureName] === true;
+    // If not in tenant mode, allow all features
+    if (!tenantSlug) {
+      return true;
+    }
+    // If tenant config exists, check features
+    if (tenantConfig?.features) {
+      return tenantConfig.features[featureName] === true;
+    }
+    // Default to false for tenant mode
+    return false;
+  };
+
+  // Get all enabled features
+  const getEnabledFeatures = () => {
+    if (!tenantConfig?.features) return {};
+    return tenantConfig.features;
   };
 
   // Get branding
@@ -172,6 +189,7 @@ export const TenantProvider = ({ children }) => {
     error,
     fetchWithTenant,
     hasFeature,
+    getEnabledFeatures,
     getBranding,
     getRazorpayKey,
     isTenantMode: !!tenantSlug

@@ -5,6 +5,7 @@ import { useSettings } from '../context/SettingsContext';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useBrand } from '../context/BrandContext';
+import { useTenant } from '../context/TenantContext';
 import { useTheme } from '../hooks/useTheme';
 import { convertImageUrl } from '../utils/imageUtils';
 import SubNavbar from './SubNavbar';
@@ -15,7 +16,23 @@ const Navbar = () => {
   const { isAuthenticated, logout, user, isAdmin, loginWithGoogle } = useAuth();
   const { cart } = useCart();
   const { brandName: contextBrandName, logoUrl: contextLogoUrl } = useBrand();
+  const { hasFeature, isTenantMode } = useTenant();
   const { getThemeClasses } = useTheme();
+
+  // Map navigation item names to tenant features
+  const navItemToFeature = {
+    'home': null, // Always show Home
+    'products': 'Products',
+    'blog': 'Blog',
+    'blogs': 'Blog',
+    'contact': 'ContactForm',
+    'bookings': 'Bookings',
+    'books': 'Books',
+    'portfolio': 'Portfolio',
+    'courses': 'Courses',
+    'webinar': 'Webinar',
+    'cart': 'Cart',
+  };
 
   const themeClasses = getThemeClasses();
 
@@ -145,8 +162,27 @@ const Navbar = () => {
   const allNavigationItems = sheetsNavigationItems.length > 0 ? sheetsNavigationItems : navigationItems;
   
   // Filter visible navigation items
-  const visibleNavItems = allNavigationItems.filter(item => item.visible);
-  
+  const visibleBySettings = allNavigationItems.filter(item => item.visible);
+
+  // Filter by tenant features if in tenant mode
+  const visibleNavItems = visibleBySettings.filter(item => {
+    // If not in tenant mode, show all
+    if (!isTenantMode) return true;
+
+    const itemId = item.id.toLowerCase();
+    const requiredFeature = navItemToFeature[itemId];
+
+    // If no feature mapping (like 'home' with null), always show
+    if (requiredFeature === null) return true;
+
+    // If feature is mapped, check if tenant has it enabled
+    if (requiredFeature) return hasFeature(requiredFeature);
+
+    // For unmapped items, hide them in tenant mode by default for security
+    // (prevents showing features that weren't explicitly allowed)
+    return false;
+  });
+
   // Smart responsive navigation - show max items based on screen size
   const getMaxVisibleItems = () => {
     if (typeof window !== 'undefined') {
@@ -352,8 +388,8 @@ const Navbar = () => {
           {/* Right Side - User Actions */}
           <div className="hidden md:flex items-center space-x-2 ml-auto">
 
-            {/* Cart Icon - Show for authenticated users */}
-            {isAuthenticated() && (
+            {/* Cart Icon - Show for authenticated users if Cart feature is enabled */}
+            {isAuthenticated() && hasFeature('Cart') && (
               <Link
                 to="/cart"
                 className="relative p-2 rounded-full hover:bg-gray-100 transition-all duration-200"

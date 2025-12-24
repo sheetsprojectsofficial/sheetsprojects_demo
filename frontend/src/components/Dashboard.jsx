@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSettings } from '../context/SettingsContext';
+import { useTenant } from '../context/TenantContext';
 import LandingPageManager from './LandingPageManager';
 import AdminProducts from './AdminProducts';
 import AdminBlogs from './AdminBlogs';
@@ -23,6 +24,7 @@ const Dashboard = () => {
   const { user, isAdmin, isSuperAdmin, logout } = useAuth();
   const navigate = useNavigate();
   const { settings } = useSettings();
+  const { hasFeature, isTenantMode, loading: tenantLoading } = useTenant();
   const [searchParams, setSearchParams] = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -86,18 +88,18 @@ const Dashboard = () => {
 
   const enabledMenuItems = getEnabledMenuItems();
 
-  // Map menu items to their tab names and icons
+  // Map menu items to their tab names, icons, and required features
   const menuItemConfig = {
-    'Products': { tab: 'products', icon: '📦', label: 'Products' },
-    'Blog': { tab: 'blogs', icon: '📝', label: 'Blogs' },
-    'Blogs': { tab: 'blogs', icon: '📝', label: 'Blogs' },
-    'Contact': { tab: 'contact', icon: '📞', label: 'Contact' },
-    'Bookings': { tab: 'bookings', icon: '🏨', label: 'Bookings' },
-    'Books': { tab: 'books', icon: '📚', label: 'Books' },
-    'Orders': { tab: 'orders', icon: '📋', label: 'Orders' },
-    'Portfolio': { tab: 'portfolio', icon: '💼', label: 'Portfolio' },
-    'Courses': { tab: 'courses', icon: '🎓', label: 'Courses' },
-    'Invoices': { tab: 'invoices', icon: '🧾', label: 'Invoice' }
+    'Products': { tab: 'products', icon: '📦', label: 'Products', feature: 'Products' },
+    'Blog': { tab: 'blogs', icon: '📝', label: 'Blogs', feature: 'Blog' },
+    'Blogs': { tab: 'blogs', icon: '📝', label: 'Blogs', feature: 'Blog' },
+    'Contact': { tab: 'contact', icon: '📞', label: 'Contact', feature: 'ContactForm' },
+    'Bookings': { tab: 'bookings', icon: '🏨', label: 'Bookings', feature: 'Bookings' },
+    'Books': { tab: 'books', icon: '📚', label: 'Books', feature: 'Books' },
+    'Orders': { tab: 'orders', icon: '📋', label: 'Orders', feature: 'Orders' },
+    'Portfolio': { tab: 'portfolio', icon: '💼', label: 'Portfolio', feature: 'Portfolio' },
+    'Courses': { tab: 'courses', icon: '🎓', label: 'Courses', feature: 'Courses' },
+    'Invoices': { tab: 'invoices', icon: '🧾', label: 'Invoice', feature: 'Orders' }
   };
 
   useEffect(() => {
@@ -345,10 +347,12 @@ const Dashboard = () => {
                   )}
                 </button>
 
-                {/* Dynamic menu items from settings */}
+                {/* Dynamic menu items from settings - also check tenant features */}
                 {enabledMenuItems.map(item => {
                   const config = menuItemConfig[item];
                   if (!config) return null;
+                  // Check if tenant has this feature enabled
+                  if (config.feature && !hasFeature(config.feature)) return null;
                   return (
                     <button
                       key={item}
@@ -366,8 +370,8 @@ const Dashboard = () => {
                   );
                 })}
 
-                {/* Orders - Always show if Products is enabled */}
-                {enabledMenuItems.includes('Products') && (
+                {/* Orders - Show if Orders feature is enabled */}
+                {hasFeature('Orders') && (
                   <button
                     onClick={() => handleTabChange('orders')}
                     className={`${activeTab === 'orders' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full relative`}
@@ -382,82 +386,97 @@ const Dashboard = () => {
                   </button>
                 )}
 
-                {!sidebarCollapsed && (
-                  <div className="px-3 py-2 mt-4">
-                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Tools</h3>
-                  </div>
+                {/* Tools section - only show if any tool features are enabled */}
+                {(hasFeature('ColdEmail') || hasFeature('EmailCampaigns') || hasFeature('Crm') || hasFeature('Automation')) && (
+                  <>
+                    {!sidebarCollapsed && (
+                      <div className="px-3 py-2 mt-4">
+                        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Tools</h3>
+                      </div>
+                    )}
+                    {sidebarCollapsed && <div className="my-2 border-t border-gray-200"></div>}
+                  </>
                 )}
-                {sidebarCollapsed && <div className="my-2 border-t border-gray-200"></div>}
 
-                {/* Invoice - Always there */}
-                <button
-                  onClick={() => handleTabChange('invoices')}
-                  className={`${activeTab === 'invoices' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full relative`}
-                >
-                  <span className={`text-lg ${sidebarCollapsed ? '' : 'mr-3'}`}>🧾</span>
-                  {!sidebarCollapsed && <span className="flex-1 text-left">Invoice</span>}
-                  {sidebarCollapsed && (
-                    <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                      Invoice
-                    </span>
-                  )}
-                </button>
+                {/* Invoice - Show if Orders is enabled */}
+                {hasFeature('Orders') && (
+                  <button
+                    onClick={() => handleTabChange('invoices')}
+                    className={`${activeTab === 'invoices' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full relative`}
+                  >
+                    <span className={`text-lg ${sidebarCollapsed ? '' : 'mr-3'}`}>🧾</span>
+                    {!sidebarCollapsed && <span className="flex-1 text-left">Invoice</span>}
+                    {sidebarCollapsed && (
+                      <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                        Invoice
+                      </span>
+                    )}
+                  </button>
+                )}
 
-                {/* Cold Email Finder - Always there */}
-                <button
-                  onClick={() => handleTabChange('email-finder')}
-                  className={`${activeTab === 'email-finder' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full relative`}
-                >
-                  <span className={`text-lg ${sidebarCollapsed ? '' : 'mr-3'}`}>🔍</span>
-                  {!sidebarCollapsed && <span className="flex-1 text-left">Cold Email Finder</span>}
-                  {sidebarCollapsed && (
-                    <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                      Cold Email Finder
-                    </span>
-                  )}
-                </button>
+                {/* Cold Email Finder - Check ColdEmail feature */}
+                {hasFeature('ColdEmail') && (
+                  <button
+                    onClick={() => handleTabChange('email-finder')}
+                    className={`${activeTab === 'email-finder' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full relative`}
+                  >
+                    <span className={`text-lg ${sidebarCollapsed ? '' : 'mr-3'}`}>🔍</span>
+                    {!sidebarCollapsed && <span className="flex-1 text-left">Cold Email Finder</span>}
+                    {sidebarCollapsed && (
+                      <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                        Cold Email Finder
+                      </span>
+                    )}
+                  </button>
+                )}
 
-                {/* Email Campaign - Always there */}
-                <button
-                  onClick={() => handleTabChange('email-campaign')}
-                  className={`${activeTab === 'email-campaign' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full relative`}
-                >
-                  <span className={`text-lg ${sidebarCollapsed ? '' : 'mr-3'}`}>📨</span>
-                  {!sidebarCollapsed && <span className="flex-1 text-left">Email Campaign</span>}
-                  {sidebarCollapsed && (
-                    <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                      Email Campaign
-                    </span>
-                  )}
-                </button>
+                {/* Email Campaign - Check EmailCampaigns feature */}
+                {hasFeature('EmailCampaigns') && (
+                  <button
+                    onClick={() => handleTabChange('email-campaign')}
+                    className={`${activeTab === 'email-campaign' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full relative`}
+                  >
+                    <span className={`text-lg ${sidebarCollapsed ? '' : 'mr-3'}`}>📨</span>
+                    {!sidebarCollapsed && <span className="flex-1 text-left">Email Campaign</span>}
+                    {sidebarCollapsed && (
+                      <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                        Email Campaign
+                      </span>
+                    )}
+                  </button>
+                )}
 
-                {/* Leads - Always there */}
-                <button
-                  onClick={() => handleTabChange('crm')}
-                  className={`${activeTab === 'crm' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full relative`}
-                >
-                  <span className={`text-lg ${sidebarCollapsed ? '' : 'mr-3'}`}>👥</span>
-                  {!sidebarCollapsed && <span className="flex-1 text-left">Leads</span>}
-                  {sidebarCollapsed && (
-                    <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                      Leads
-                    </span>
-                  )}
-                </button>
+                {/* Leads - Check Crm feature */}
+                {hasFeature('Crm') && (
+                  <button
+                    onClick={() => handleTabChange('crm')}
+                    className={`${activeTab === 'crm' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full relative`}
+                  >
+                    <span className={`text-lg ${sidebarCollapsed ? '' : 'mr-3'}`}>👥</span>
+                    {!sidebarCollapsed && <span className="flex-1 text-left">Leads</span>}
+                    {sidebarCollapsed && (
+                      <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                        Leads
+                      </span>
+                    )}
+                  </button>
+                )}
 
-                {/* Automation - Always there */}
-                <button
-                  onClick={() => handleTabChange('automation')}
-                  className={`${activeTab === 'automation' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full relative`}
-                >
-                  <span className={`text-lg ${sidebarCollapsed ? '' : 'mr-3'}`}>⚡</span>
-                  {!sidebarCollapsed && <span className="flex-1 text-left">Automation</span>}
-                  {sidebarCollapsed && (
-                    <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                      Automation
-                    </span>
-                  )}
-                </button>
+                {/* Automation - Check Automation feature */}
+                {hasFeature('Automation') && (
+                  <button
+                    onClick={() => handleTabChange('automation')}
+                    className={`${activeTab === 'automation' ? 'bg-blue-50 border-blue-200 text-brand-primary' : 'text-gray-700 border-gray-200 hover:bg-gray-50'} group flex items-center cursor-pointer ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-3 text-sm font-medium rounded-lg border transition-all duration-200 w-full relative`}
+                  >
+                    <span className={`text-lg ${sidebarCollapsed ? '' : 'mr-3'}`}>⚡</span>
+                    {!sidebarCollapsed && <span className="flex-1 text-left">Automation</span>}
+                    {sidebarCollapsed && (
+                      <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                        Automation
+                      </span>
+                    )}
+                  </button>
+                )}
               </nav>
             ) : (
               <nav className={`${sidebarCollapsed ? 'px-2' : 'px-2'} py-4 space-y-1`}>
@@ -603,17 +622,36 @@ const Dashboard = () => {
             <div className="max-w-7xl mx-auto">
               {isAdmin() ? (
                 <div className="space-y-6">
-                  {activeTab === 'invoices' && <Invoices />}
+                  {activeTab === 'invoices' && hasFeature('Orders') && <Invoices />}
                   {activeTab === 'landing' && <LandingPageManager />}
-                  {activeTab === 'products' && <AdminProducts />}
-                  {activeTab === 'blogs' && <AdminBlogs />}
-                  {activeTab === 'books' && <AdminBooks />}
-                  {activeTab === 'orders' && <Orders />}
-                  {activeTab === 'bookings' && <AdminBookings />}
-                  {activeTab === 'email-finder' && <EmailFinder />}
-                  {activeTab === 'email-campaign' && <EmailCampaign />}
-                  {activeTab === 'crm' && <CRMList />}
-                  {activeTab === 'automation' && <AutomationList />}
+                  {activeTab === 'products' && hasFeature('Products') && <AdminProducts />}
+                  {activeTab === 'blogs' && hasFeature('Blog') && <AdminBlogs />}
+                  {activeTab === 'books' && hasFeature('Books') && <AdminBooks />}
+                  {activeTab === 'orders' && hasFeature('Orders') && <Orders />}
+                  {activeTab === 'bookings' && hasFeature('Bookings') && <AdminBookings />}
+                  {activeTab === 'email-finder' && hasFeature('ColdEmail') && <EmailFinder />}
+                  {activeTab === 'email-campaign' && hasFeature('EmailCampaigns') && <EmailCampaign />}
+                  {activeTab === 'crm' && hasFeature('Crm') && <CRMList />}
+                  {activeTab === 'automation' && hasFeature('Automation') && <AutomationList />}
+                  {/* Show access denied message if tab feature is disabled */}
+                  {activeTab !== 'landing' && (
+                    (activeTab === 'products' && !hasFeature('Products')) ||
+                    (activeTab === 'blogs' && !hasFeature('Blog')) ||
+                    (activeTab === 'books' && !hasFeature('Books')) ||
+                    (activeTab === 'orders' && !hasFeature('Orders')) ||
+                    (activeTab === 'invoices' && !hasFeature('Orders')) ||
+                    (activeTab === 'bookings' && !hasFeature('Bookings')) ||
+                    (activeTab === 'email-finder' && !hasFeature('ColdEmail')) ||
+                    (activeTab === 'email-campaign' && !hasFeature('EmailCampaigns')) ||
+                    (activeTab === 'crm' && !hasFeature('Crm')) ||
+                    (activeTab === 'automation' && !hasFeature('Automation'))
+                  ) && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
+                      <div className="text-4xl mb-3">🚫</div>
+                      <h3 className="text-lg font-semibold text-yellow-800">Feature Not Available</h3>
+                      <p className="text-yellow-600 mt-2">This feature is not enabled for your account. Please contact support to enable it.</p>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <CustomerDashboard />

@@ -13,6 +13,48 @@ import { FooterProvider } from "./context/FooterContext";
 import { BrandProvider } from "./context/BrandContext";
 import { SettingsProvider } from "./context/SettingsContext";
 import { LoadingProvider } from "./context/LoadingContext";
+import { TenantProvider, useTenant } from "./context/TenantContext";
+
+// Feature-gated route component
+const FeatureRoute = ({ feature, children }) => {
+  const { hasFeature, isTenantMode, loading } = useTenant();
+
+  // If loading tenant config, show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  // If not in tenant mode, allow all features
+  if (!isTenantMode) {
+    return children;
+  }
+
+  // Check if feature is enabled
+  if (hasFeature(feature)) {
+    return children;
+  }
+
+  // Feature not enabled - show access denied
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+      <div className="text-center max-w-md">
+        <div className="text-6xl mb-4">🚫</div>
+        <h1 className="text-2xl font-bold text-gray-800 mb-2">Feature Not Available</h1>
+        <p className="text-gray-600 mb-4">This feature is not enabled for this website.</p>
+        <a
+          href="/"
+          className="inline-block px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+        >
+          Go to Home
+        </a>
+      </div>
+    </div>
+  );
+};
 import Navbar from "./components/Navbar";
 import Login from "./components/Login";
 import Dashboard from "./components/Dashboard";
@@ -55,15 +97,16 @@ import Webinar from "./components/Webinar";
 
 function App() {
   return (
-    <AuthProvider>
-      <CartProvider>
-        <NavigationProvider>
-          <SubNavbarProvider>
-            <BrandProvider>
-              <SettingsProvider>
-                <FooterProvider>
-                  <LoadingProvider>
-                    <Router>
+    <TenantProvider>
+      <AuthProvider>
+        <CartProvider>
+          <NavigationProvider>
+            <SubNavbarProvider>
+              <BrandProvider>
+                <SettingsProvider>
+                  <FooterProvider>
+                    <LoadingProvider>
+                      <Router>
                     <ScrollToTop />
                     <Routes>
                     {/* Dashboard routes - render without main layout */}
@@ -115,62 +158,61 @@ function App() {
                           <Navbar />
                           <div className="flex-1">
                             <Routes>
+                              {/* Home - always accessible */}
                               <Route path="/" element={<Home />} />
-                              <Route path="/products" element={<Products />} />
-                              <Route
-                                path="/products/:id"
-                                element={<ProductDetail />}
-                              />
-                              <Route path="/blog" element={<Blog />} />
-                              <Route path="/blog/:slug" element={<BlogDetail />} />
-                              <Route path="/portfolio" element={<DynamicPortfolio />} />
-                              <Route path="/sales-portfolio" element={<SalesPortfolio />} />
-                              <Route path="/showcase" element={<Showcase />} />
-                              <Route path="/books" element={<Books />} />
-                              <Route path="/books/:slug" element={<BookDetail />} />
-                              <Route path="/courses" element={<Courses />} />
-                              <Route path="/contact" element={<ContactUs />} />
-                              <Route path="/cold-email" element={<ColdEmail />} />
-                              <Route path="/bookings" element={<BookingForm />} />
-                              <Route path="/my-bookings" element={<MyBookings />} />
-                              <Route path="/invoices" element={<Invoices />} />
-                              <Route path="/cart" element={<Cart />} />
-                              <Route
-                                path="/checkout/:id"
-                                element={<Checkout />}
-                              />
 
+                              {/* Products - requires Products feature */}
+                              <Route path="/products" element={<FeatureRoute feature="Products"><Products /></FeatureRoute>} />
+                              <Route path="/products/:id" element={<FeatureRoute feature="Products"><ProductDetail /></FeatureRoute>} />
+
+                              {/* Blog - requires Blog feature */}
+                              <Route path="/blog" element={<FeatureRoute feature="Blog"><Blog /></FeatureRoute>} />
+                              <Route path="/blog/:slug" element={<FeatureRoute feature="Blog"><BlogDetail /></FeatureRoute>} />
+
+                              {/* Portfolio - requires Portfolio feature */}
+                              <Route path="/portfolio" element={<FeatureRoute feature="Portfolio"><DynamicPortfolio /></FeatureRoute>} />
+                              <Route path="/sales-portfolio" element={<FeatureRoute feature="Portfolio"><SalesPortfolio /></FeatureRoute>} />
+                              <Route path="/showcase" element={<FeatureRoute feature="Portfolio"><Showcase /></FeatureRoute>} />
+
+                              {/* Books - requires Books feature */}
+                              <Route path="/books" element={<FeatureRoute feature="Books"><Books /></FeatureRoute>} />
+                              <Route path="/books/:slug" element={<FeatureRoute feature="Books"><BookDetail /></FeatureRoute>} />
+
+                              {/* Courses - requires Courses feature */}
+                              <Route path="/courses" element={<FeatureRoute feature="Courses"><Courses /></FeatureRoute>} />
+
+                              {/* Contact - requires ContactForm feature */}
+                              <Route path="/contact" element={<FeatureRoute feature="ContactForm"><ContactUs /></FeatureRoute>} />
+
+                              {/* Cold Email - requires ColdEmail feature */}
+                              <Route path="/cold-email" element={<FeatureRoute feature="ColdEmail"><ColdEmail /></FeatureRoute>} />
+
+                              {/* Bookings - requires Bookings feature */}
+                              <Route path="/bookings" element={<FeatureRoute feature="Bookings"><BookingForm /></FeatureRoute>} />
+                              <Route path="/my-bookings" element={<FeatureRoute feature="Bookings"><MyBookings /></FeatureRoute>} />
+
+                              {/* Invoices - requires Orders feature */}
+                              <Route path="/invoices" element={<FeatureRoute feature="Orders"><Invoices /></FeatureRoute>} />
+
+                              {/* Cart & Checkout - requires Cart feature */}
+                              <Route path="/cart" element={<FeatureRoute feature="Cart"><Cart /></FeatureRoute>} />
+                              <Route path="/checkout/:id" element={<FeatureRoute feature="Cart"><Checkout /></FeatureRoute>} />
+
+                              {/* Webinar - requires Webinar feature */}
+                              <Route path="/webinar" element={<FeatureRoute feature="Webinar"><Webinar /></FeatureRoute>} />
+
+                              {/* Always accessible routes - no feature requirement */}
                               <Route path="/login" element={<Login />} />
                               <Route path="/about" element={<AboutUs />} />
-                              <Route
-                                path="/terms"
-                                element={<TermsAndConditions />}
-                              />
-                              <Route
-                                path="/privacy"
-                                element={<PrivacyPolicy />}
-                              />
-                              <Route
-                                path="/shipping"
-                                element={<ShippingPolicy />}
-                              />
-                              <Route
-                                path="/cancellations-refunds"
-                                element={<CancellationsRefunds />}
-                              />
-                              <Route
-                                path="/refund-policy"
-                                element={<RefundPolicy />}
-                              />
-                              <Route
-                                path="/pricing-policy"
-                                element={<PricingPolicy />}
-                              />
-                              <Route path="/webinar" element={<Webinar />} />
-                              <Route
-                                path="*"
-                                element={<Navigate to="/" replace />}
-                              />
+                              <Route path="/terms" element={<TermsAndConditions />} />
+                              <Route path="/privacy" element={<PrivacyPolicy />} />
+                              <Route path="/shipping" element={<ShippingPolicy />} />
+                              <Route path="/cancellations-refunds" element={<CancellationsRefunds />} />
+                              <Route path="/refund-policy" element={<RefundPolicy />} />
+                              <Route path="/pricing-policy" element={<PricingPolicy />} />
+
+                              {/* Catch-all redirect */}
+                              <Route path="*" element={<Navigate to="/" replace />} />
                             </Routes>
                           </div>
                           <Footer />
@@ -190,15 +232,16 @@ function App() {
                     pauseOnHover
                     theme="light"
                   />
-                  </Router>
-                  </LoadingProvider>
-                </FooterProvider>
-              </SettingsProvider>
-            </BrandProvider>
-          </SubNavbarProvider>
-        </NavigationProvider>
-      </CartProvider>
-    </AuthProvider>
+                      </Router>
+                    </LoadingProvider>
+                  </FooterProvider>
+                </SettingsProvider>
+              </BrandProvider>
+            </SubNavbarProvider>
+          </NavigationProvider>
+        </CartProvider>
+      </AuthProvider>
+    </TenantProvider>
   );
 }
 
