@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useAuthState } from 'react-firebase-hooks/auth';
-import { auth } from '../config/firebase';
+import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
+import { apiFetch } from '../utils/api';
 
 const AdminBooks = () => {
-  const [user] = useAuthState(auth);
+  const { user, getToken } = useAuth();
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -17,7 +17,7 @@ const AdminBooks = () => {
   const fetchBooks = async (page = 1, status = 'all') => {
     try {
       setLoading(true);
-      const token = await user.getIdToken();
+      const token = await getToken();
 
       const params = new URLSearchParams({
         page: page.toString(),
@@ -28,7 +28,7 @@ const AdminBooks = () => {
         params.append('status', status);
       }
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/books/admin/all?${params}`, {
+      const response = await apiFetch(`/books/admin/all?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -54,8 +54,8 @@ const AdminBooks = () => {
   // Fetch book stats
   const fetchStats = async () => {
     try {
-      const token = await user.getIdToken();
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/books/admin/stats`, {
+      const token = await getToken();
+      const response = await apiFetch('/books/admin/stats', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -79,9 +79,9 @@ const AdminBooks = () => {
   const syncFromDrive = async () => {
     try {
       setSyncing(true);
-      const token = await user.getIdToken();
+      const token = await getToken();
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/books/admin/sync`, {
+      const response = await apiFetch('/books/admin/sync', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -129,8 +129,8 @@ const AdminBooks = () => {
     if (!confirm('Are you sure you want to delete this book?')) return;
 
     try {
-      const token = await user.getIdToken();
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/books/admin/${bookId}`, {
+      const token = await getToken();
+      const response = await apiFetch(`/books/admin/${bookId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -156,8 +156,8 @@ const AdminBooks = () => {
   // Update book
   const updateBook = async (bookId, updateData) => {
     try {
-      const token = await user.getIdToken();
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/books/admin/${bookId}`, {
+      const token = await getToken();
+      const response = await apiFetch(`/books/admin/${bookId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

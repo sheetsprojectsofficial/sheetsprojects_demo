@@ -112,16 +112,17 @@ export const BrandProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   // Fetch brand data from Google Sheets via settings
+  // For tenants, apiFetch includes tenant headers so API uses tenant's Google Sheet
   const fetchBrandData = async () => {
     try {
       setLoading(true);
-      
+
       // Fetch from both hero and settings
       const [heroResponse, settingsResponse] = await Promise.all([
         apiFetch(`${API_URL}/hero`),
         apiFetch(`${API_URL}/settings`)
       ]);
-      
+
       const heroData = await heroResponse.json();
       const settingsData = await settingsResponse.json();
 
@@ -132,10 +133,15 @@ export const BrandProvider = ({ children }) => {
         let secondaryColor = DEFAULT_COLORS.secondary;
 
         // Get Brand name from Brand details section (NOT Hero Section)
+        let fetchedBrandName = null;
         if (settings['Brand name']?.value) {
-          setBrandName(settings['Brand name'].value);
+          fetchedBrandName = settings['Brand name'].value;
         } else if (settings['Brand Name']?.value) {
-          setBrandName(settings['Brand Name'].value);
+          fetchedBrandName = settings['Brand Name'].value;
+        }
+        if (fetchedBrandName) {
+          setBrandName(fetchedBrandName);
+          document.title = fetchedBrandName;
         }
 
         // Get Logo URL from Brand details section
@@ -145,6 +151,16 @@ export const BrandProvider = ({ children }) => {
           setLogoUrl(settings['Logo url'].value);
         } else if (settings['logo url']?.value) {
           setLogoUrl(settings['logo url'].value);
+        }
+
+        // Get Favicon URL from Brand details section
+        const faviconUrl = settings['Favicon URL']?.value || settings['Favicon url']?.value || settings['favicon url']?.value;
+        if (faviconUrl) {
+          const link = document.querySelector("link[rel*='icon']") || document.createElement('link');
+          link.type = 'image/x-icon';
+          link.rel = 'shortcut icon';
+          link.href = faviconUrl;
+          document.getElementsByTagName('head')[0].appendChild(link);
         }
 
         // Look for brand color fields - try different variations
@@ -159,27 +175,26 @@ export const BrandProvider = ({ children }) => {
         } else if (settings['Brand secondary color']?.value) {
           secondaryColor = settings['Brand secondary color'].value;
         }
-        
+
         // Convert colors and create RGB values
         const primary = colorNameToHex(primaryColor);
         const secondary = colorNameToHex(secondaryColor);
-        
+
         const primaryRgb = hexToRgb(primary);
         const secondaryRgb = hexToRgb(secondary);
-        
+
         const newColors = {
           primary,
           secondary,
           primaryRgb: primaryRgb ? `${primaryRgb.r}, ${primaryRgb.g}, ${primaryRgb.b}` : DEFAULT_COLORS.primaryRgb,
           secondaryRgb: secondaryRgb ? `${secondaryRgb.r}, ${secondaryRgb.g}, ${secondaryRgb.b}` : DEFAULT_COLORS.secondaryRgb
         };
-        
+
         setBrandColors(newColors);
-        
+
         // Apply colors to CSS custom properties
         applyThemeColors(primary, secondary);
       } else {
-
         applyThemeColors(DEFAULT_COLORS.primary, DEFAULT_COLORS.secondary);
       }
     } catch (error) {
@@ -222,15 +237,13 @@ export const BrandProvider = ({ children }) => {
 
   useEffect(() => {
     // Apply default colors immediately on mount
-
     applyThemeColors(DEFAULT_COLORS.primary, DEFAULT_COLORS.secondary);
-    
-    // Then fetch data from Google Sheets
+
+    // Then fetch data from Settings API (uses tenant's Google Sheet for tenant websites)
     fetchBrandData();
-    
+
     // Also apply colors after a small delay to ensure DOM is ready
     setTimeout(() => {
-
       applyThemeColors(DEFAULT_COLORS.primary, DEFAULT_COLORS.secondary);
     }, 100);
   }, []);

@@ -2,15 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { useAuthState } from 'react-firebase-hooks/auth';
-import { auth } from '../config/firebase';
+import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { apiFetch } from '../utils/api';
 
 const Checkout = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [user] = useAuthState(auth);
+  const { user } = useAuth();
   const { cart, clearCart, loading: cartLoading } = useCart();
   const [product, setProduct] = useState(null);
   const [book, setBook] = useState(null);
@@ -88,7 +88,7 @@ const Checkout = () => {
             setBookFormat('soft');
           }
 
-          const response = await fetch(`${import.meta.env.VITE_API_URL}/books/id/${bookId}`);
+          const response = await apiFetch(`/books/id/${bookId}`);
           const data = await response.json();
 
           if (data.success && data.book) {
@@ -100,7 +100,7 @@ const Checkout = () => {
           // It's a product
           setItemType('product');
 
-          const response = await fetch(`${import.meta.env.VITE_API_URL}/products`);
+          const response = await apiFetch('/products');
           const data = await response.json();
 
           if (data.success && data.products && Array.isArray(data.products)) {
@@ -140,7 +140,7 @@ const Checkout = () => {
       
       try {
         const token = await user.getIdToken();
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/orders/user/${encodeURIComponent(user.email)}`, {
+        const response = await apiFetch(`/orders/user/${encodeURIComponent(user.email)}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -306,7 +306,7 @@ const Checkout = () => {
               status: 'completed'
             };
 
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/books/${book._id}/purchase`, {
+            const response = await apiFetch(`/books/${book._id}/purchase`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -335,7 +335,7 @@ const Checkout = () => {
               customerInfo: formData
             };
 
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/checkout`, {
+            const response = await apiFetch('/checkout', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json'
@@ -380,7 +380,7 @@ const Checkout = () => {
       const amount = type === 'cart' ? cart.total : (type === 'book' ? bookPrice : price);
 
       // Create Razorpay order
-      const orderResponse = await fetch(`${import.meta.env.VITE_API_URL}/payment/create-order`, {
+      const orderResponse = await apiFetch('/payment/create-order', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -467,7 +467,7 @@ const Checkout = () => {
               };
             }
 
-            const verifyResponse = await fetch(`${import.meta.env.VITE_API_URL}/payment/verify-payment`, {
+            const verifyResponse = await apiFetch('/payment/verify-payment', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json'

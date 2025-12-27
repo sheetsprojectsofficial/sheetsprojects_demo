@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSettings } from '../context/SettingsContext';
 import { useTheme } from '../hooks/useTheme';
+import { apiFetch } from '../utils/api';
 
 const ContactUs = () => {
   const { settings, getSettingValue } = useSettings();
@@ -110,7 +111,7 @@ const ContactUs = () => {
     setSubmitMessage('');
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/contact-form/submit`, {
+      const response = await apiFetch('/contact-form/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
+import { apiFetch } from '../../utils/api';
 
 const BasicPortfolio = () => {
   const [portfolioData, setPortfolioData] = useState({});
@@ -40,7 +41,7 @@ const BasicPortfolio = () => {
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/portfolio/dynamic`);
+      const response = await apiFetch('/portfolio/dynamic');
       const data = await response.json();
       
       if (data.success) {

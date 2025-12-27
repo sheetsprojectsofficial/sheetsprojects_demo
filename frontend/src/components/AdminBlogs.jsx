@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useAuthState } from 'react-firebase-hooks/auth';
-import { auth } from '../config/firebase';
+import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
+import { apiFetch } from '../utils/api';
 
 const AdminBlogs = () => {
-  const [user] = useAuthState(auth);
+  const { user, getToken } = useAuth();
   const [blogs, setBlogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -17,7 +17,7 @@ const AdminBlogs = () => {
   const fetchBlogs = async (page = 1, status = 'all') => {
     try {
       setLoading(true);
-      const token = await user.getIdToken();
+      const token = await getToken();
 
       const params = new URLSearchParams({
         page: page.toString(),
@@ -28,7 +28,7 @@ const AdminBlogs = () => {
         params.append('status', status);
       }
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/blog/admin/all?${params}`, {
+      const response = await apiFetch(`/blog/admin/all?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -54,8 +54,8 @@ const AdminBlogs = () => {
   // Fetch blog stats
   const fetchStats = async () => {
     try {
-      const token = await user.getIdToken();
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/blog/admin/stats`, {
+      const token = await getToken();
+      const response = await apiFetch(`/blog/admin/stats`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -79,9 +79,9 @@ const AdminBlogs = () => {
   const syncFromDrive = async () => {
     try {
       setSyncing(true);
-      const token = await user.getIdToken();
+      const token = await getToken();
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/blog/admin/sync`, {
+      const response = await apiFetch(`/blog/admin/sync`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -111,8 +111,8 @@ const AdminBlogs = () => {
     if (!confirm('Are you sure you want to delete this blog?')) return;
 
     try {
-      const token = await user.getIdToken();
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/blog/admin/${blogId}`, {
+      const token = await getToken();
+      const response = await apiFetch(`/blog/admin/${blogId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -138,8 +138,8 @@ const AdminBlogs = () => {
   // Update blog status
   const updateBlogStatus = async (blogId, status) => {
     try {
-      const token = await user.getIdToken();
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/blog/admin/${blogId}`, {
+      const token = await getToken();
+      const response = await apiFetch(`/blog/admin/${blogId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

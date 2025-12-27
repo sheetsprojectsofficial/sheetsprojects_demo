@@ -6,6 +6,7 @@ import { toast } from 'react-toastify';
 import Comments from './Comments';
 import { Modal, Box, IconButton, Fade, Backdrop } from '@mui/material';
 import { Close as CloseIcon, ContentCopy as CopyIcon } from '@mui/icons-material';
+import { apiFetch } from '../utils/api';
 
 const BookDetail = () => {
   const { slug } = useParams();
@@ -65,7 +66,7 @@ const BookDetail = () => {
         const userIdForCheck = isAuthenticated && user ? user.uid : id;
         if (userIdForCheck) params.append('userId', userIdForCheck);
         
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/books/${slug}?${params}`, {
+        const response = await apiFetch(`/books/${slug}?${params}`, {
           signal: abortController.signal
         });
         const data = await response.json();
@@ -114,7 +115,7 @@ const BookDetail = () => {
     
     try {
       const token = await user.getIdToken();
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/orders/my-purchases`, {
+      const response = await apiFetch('/orders/my-purchases', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -124,11 +125,11 @@ const BookDetail = () => {
       const data = await response.json();
       if (data.success) {
         // Find purchase for this specific book
-        const bookPurchase = data.purchases.find(purchase => 
-          purchase.itemType === 'book' && 
+        const bookPurchase = data.purchases.find(purchase =>
+          purchase.itemType === 'book' &&
           purchase.bookInfo?.slug === book.slug
         );
-        
+
         if (bookPurchase) {
           setPurchaseInfo(bookPurchase);
         }
@@ -175,7 +176,7 @@ const BookDetail = () => {
     try {
       const endpoint = isLiked ? 'unlike' : 'like';
       
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/books/${book._id}/${endpoint}`, {
+      const response = await apiFetch(`/books/${book._id}/${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -245,7 +246,7 @@ const BookDetail = () => {
     
     try {
       const token = await user.getIdToken();
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/orders/my-purchases`, {
+      const response = await apiFetch('/orders/my-purchases', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -255,11 +256,11 @@ const BookDetail = () => {
       const data = await response.json();
       if (data.success) {
         // Find purchase for this specific book
-        const bookPurchase = data.purchases.find(purchase => 
-          purchase.itemType === 'book' && 
+        const bookPurchase = data.purchases.find(purchase =>
+          purchase.itemType === 'book' &&
           purchase.bookInfo?.slug === book.slug
         );
-        
+
         if (bookPurchase?.solutionLink?.isEnabled && bookPurchase?.solutionLink?.driveUrl) {
           // Navigate to reader page with the latest data
           navigate(`/books/${book.slug}/read`);
@@ -328,7 +329,7 @@ const BookDetail = () => {
   // Fetch all books except current one for "You may also like" section
   const fetchAllBooksExceptCurrent = async (currentBookId, currentBookSlug) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/books`);
+      const response = await apiFetch('/books');
       const data = await response.json();
       
       if (data.success) {

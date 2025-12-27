@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { apiFetch } from '../../utils/api';
 
 const IntermediatePortfolio = () => {
   const [isVisible, setIsVisible] = useState({ home: true, about: true, skills: true, projects: true, contact: true });
@@ -17,7 +18,7 @@ const IntermediatePortfolio = () => {
     const fetchPortfolioData = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/portfolio/portfolio-data`);
+        const response = await apiFetch('/portfolio/portfolio-data');
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }

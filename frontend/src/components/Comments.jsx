@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
 import ConfirmationModal from './ConfirmationModal';
+import { apiFetch } from '../utils/api';
 
 const Comments = React.memo(({ blogId, itemType = 'blog' }) => {
   const [comments, setComments] = useState([]);
@@ -55,7 +56,7 @@ const Comments = React.memo(({ blogId, itemType = 'blog' }) => {
     try {
       setLoading(true);
       const endpoint = itemType === 'book' ? 'book' : 'blog';
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/comments/${endpoint}/${blogId}`, {
+      const response = await apiFetch(`/comments/${endpoint}/${blogId}`, {
         signal: signal
       });
       const data = await response.json();
@@ -107,7 +108,7 @@ const Comments = React.memo(({ blogId, itemType = 'blog' }) => {
       }
 
       const endpoint = itemType === 'book' ? 'book' : 'blog';
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/comments/${endpoint}/${blogId}`, {
+      const response = await apiFetch(`/comments/${endpoint}/${blogId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -178,7 +179,7 @@ const Comments = React.memo(({ blogId, itemType = 'blog' }) => {
         return;
       }
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/comments/admin/${commentToDelete}`, {
+      const response = await apiFetch(`/comments/admin/${commentToDelete}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

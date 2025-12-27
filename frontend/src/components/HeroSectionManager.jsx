@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useBrand } from '../context/BrandContext';
 import { useSettings } from '../context/SettingsContext';
 import { convertGoogleDriveUrl, getGoogleDrivePreviewUrl } from '../utils/imageUtils';
+import { apiFetch } from '../utils/api';
 
 const HeroSectionManager = ({ onMessage }) => {
   const { user } = useAuth();
@@ -59,7 +60,7 @@ const HeroSectionManager = ({ onMessage }) => {
 
   const fetchHeroData = async () => {
     try {
-      const heroResponse = await fetch(`${import.meta.env.VITE_API_URL}/hero`);
+      const heroResponse = await apiFetch('/hero');
       const heroResult = await heroResponse.json();
 
       if (heroResult.success) {
@@ -104,7 +105,7 @@ const HeroSectionManager = ({ onMessage }) => {
     
     try {
       const token = await user.getIdToken();
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/hero`, {
+      const response = await apiFetch('/hero', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

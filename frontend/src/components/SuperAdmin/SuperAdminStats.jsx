@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { apiFetch } from '../../utils/api';
 
 const StatCard = ({ icon, value, label, color }) => (
   <div className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-md transition-shadow">
@@ -29,7 +30,7 @@ const SuperAdminStats = () => {
     try {
       setLoading(true);
       const token = await getToken();
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/auth/users`, {
+      const res = await apiFetch('/auth/users', {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();

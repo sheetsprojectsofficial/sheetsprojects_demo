@@ -3,6 +3,7 @@ import { Box, Select, MenuItem, TextField, InputAdornment, Switch } from '@mui/m
 import { Search } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
+import { apiFetch } from '../../utils/api';
 import DataGrid from '../common/DataGrid';
 
 const ROLES = ['user', 'admin', 'superadmin'];
@@ -29,7 +30,7 @@ const SuperAdminUsers = () => {
     try {
       setLoading(true);
       const token = await getToken();
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/auth/users`, {
+      const res = await apiFetch('/auth/users', {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -51,7 +52,7 @@ const SuperAdminUsers = () => {
     try {
       setUpdatingUserId(uid);
       const token = await getToken();
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/auth/users/${uid}/role`, {
+      const res = await apiFetch(`/auth/users/${uid}/role`, {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -78,7 +79,7 @@ const SuperAdminUsers = () => {
     try {
       setTogglingUserId(uid);
       const token = await getToken();
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/auth/users/${uid}/toggle-status`, {
+      const res = await apiFetch(`/auth/users/${uid}/toggle-status`, {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${token}` },
       });

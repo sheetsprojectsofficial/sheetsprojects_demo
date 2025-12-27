@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "react-toastify";
 import Footer from "./Footer";
+import { apiFetch } from '../utils/api';
 
 const BookReader = () => {
   const { slug } = useParams();
@@ -35,8 +36,8 @@ const BookReader = () => {
         const params = new URLSearchParams();
         if (isAuthenticated && user) params.append("userId", user.uid);
 
-        const response = await fetch(
-          `${import.meta.env.VITE_API_URL}/books/${slug}?${params}`
+        const response = await apiFetch(
+          `/books/${slug}?${params}`
         );
         const data = await response.json();
 
@@ -71,8 +72,8 @@ const BookReader = () => {
 
       try {
         const token = await user.getIdToken();
-        const response = await fetch(
-          `${import.meta.env.VITE_API_URL}/orders/my-purchases`,
+        const response = await apiFetch(
+          '/orders/my-purchases',
           {
             headers: {
               Authorization: `Bearer ${token}`,

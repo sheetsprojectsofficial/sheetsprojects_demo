@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { apiFetch } from '../utils/api';
 
 const SolutionViewer = () => {
   const { orderId } = useParams();
@@ -26,7 +27,7 @@ const SolutionViewer = () => {
       setLoading(true);
       const token = await user.getIdToken();
       
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/orders/${orderId}/solution/access`, {
+      const response = await apiFetch(`/orders/${orderId}/solution/access`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -50,7 +51,7 @@ const SolutionViewer = () => {
 
   const loadSolutionContent = async (accessToken, userToken) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/orders/solution/${accessToken}`, {
+      const response = await apiFetch(`/orders/solution/${accessToken}`, {
         headers: {
           'Authorization': `Bearer ${userToken}`,
           'Content-Type': 'application/json'
