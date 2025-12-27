@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Comments from './Comments';
+import { apiFetch } from '../utils/api';
 
 const BlogDetail = () => {
   const { slug } = useParams();
@@ -42,7 +43,7 @@ const BlogDetail = () => {
         const params = new URLSearchParams();
         if (id) params.append('userId', id);
         
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/blog/${slug}?${params}`, {
+        const response = await apiFetch(`/blog/${slug}?${params}`, {
           signal: abortController.signal
         });
         const data = await response.json();
@@ -132,7 +133,7 @@ const BlogDetail = () => {
     try {
       const endpoint = isLiked ? 'unlike' : 'like';
       
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/blog/${blog._id}/${endpoint}`, {
+      const response = await apiFetch(`/blog/${blog._id}/${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,15 +1,14 @@
-import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+/**
+ * DEPRECATED: This file is kept for backwards compatibility only.
+ * Firebase is now initialized dynamically via TenantContext.
+ *
+ * For authentication, use:
+ * - useAuth() hook from AuthContext
+ * - useTenant() hook to get tenantAuth directly
+ *
+ * DO NOT import { auth } from this file in new code.
+ */
 
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-};
-
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export default app; 
+// Export null - Firebase is initialized by TenantContext
+export const auth = null;
+export default null; 

@@ -6,7 +6,7 @@ import {
   onAuthStateChanged,
   getIdToken
 } from 'firebase/auth';
-import { auth } from '../config/firebase';
+import { useTenant } from './TenantContext';
 import { apiFetch, getApiUrl } from '../utils/api';
 
 const AuthContext = createContext();
@@ -21,6 +21,7 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
+  const { tenantAuth, loading: tenantLoading, error: tenantError } = useTenant();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState(null);
@@ -40,9 +41,12 @@ export const AuthProvider = ({ children }) => {
 
   // Google login function
   const loginWithGoogle = async () => {
+    if (!tenantAuth) {
+      return { success: false, error: 'Authentication not initialized' };
+    }
     try {
       const provider = new GoogleAuthProvider();
-      const userCredential = await signInWithPopup(auth, provider);
+      const userCredential = await signInWithPopup(tenantAuth, provider);
       const user = userCredential.user;
 
       // Store user data in localStorage
@@ -69,7 +73,7 @@ export const AuthProvider = ({ children }) => {
 
       // Check if user is disabled
       if (data.isDisabled) {
-        await signOut(auth);
+        await signOut(tenantAuth);
         localStorage.removeItem('user');
         localStorage.removeItem('userRole');
         setUser(null);
@@ -91,8 +95,9 @@ export const AuthProvider = ({ children }) => {
 
   // Logout function
   const logout = async () => {
+    if (!tenantAuth) return;
     try {
-      await signOut(auth);
+      await signOut(tenantAuth);
       localStorage.removeItem('user');
       localStorage.removeItem('userRole');
       localStorage.removeItem('blogUserId');
@@ -119,14 +124,25 @@ export const AuthProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    // Wait for tenant auth to be ready
+    if (tenantLoading) {
+      return;
+    }
+
+    // If tenant has error or no auth available, stop loading
+    if (tenantError || !tenantAuth) {
+      setLoading(false);
+      return;
+    }
+
+    const unsubscribe = onAuthStateChanged(tenantAuth, async (user) => {
       if (user) {
         setUser(user);
-        
+
         // Get stored user data
         const storedUser = localStorage.getItem('user');
         const storedRole = localStorage.getItem('userRole');
-        
+
         if (storedUser && storedRole) {
           setUserRole(storedRole);
         } else {
@@ -150,7 +166,7 @@ export const AuthProvider = ({ children }) => {
     });
 
     return unsubscribe;
-  }, []);
+  }, [tenantAuth, tenantLoading, tenantError]);
 
   const value = {
     user,
@@ -161,7 +177,8 @@ export const AuthProvider = ({ children }) => {
     isSuperAdmin,
     isAuthenticated,
     getToken,
-    loading
+    loading: loading || tenantLoading,
+    authError: tenantError
   };
 
   return (

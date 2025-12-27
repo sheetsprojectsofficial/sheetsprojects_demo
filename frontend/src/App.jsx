@@ -23,7 +23,10 @@ const FeatureRoute = ({ feature, children }) => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        <div
+          className="animate-spin rounded-full h-12 w-12 border-b-2"
+          style={{ borderColor: 'var(--brand-primary, #3b82f6)' }}
+        ></div>
       </div>
     );
   }
@@ -47,7 +50,8 @@ const FeatureRoute = ({ feature, children }) => {
         <p className="text-gray-600 mb-4">This feature is not enabled for this website.</p>
         <a
           href="/"
-          className="inline-block px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+          className="inline-block px-6 py-2 text-white rounded-lg transition-colors"
+          style={{ backgroundColor: 'var(--brand-primary, #3b82f6)' }}
         >
           Go to Home
         </a>
@@ -203,7 +207,9 @@ function App() {
 
                               {/* Always accessible routes - no feature requirement */}
                               <Route path="/login" element={<Login />} />
-                              <Route path="/about" element={<AboutUs />} />
+
+                              {/* About page - requires aboutPage feature */}
+                              <Route path="/about" element={<FeatureRoute feature="aboutPage"><AboutUs /></FeatureRoute>} />
                               <Route path="/terms" element={<TermsAndConditions />} />
                               <Route path="/privacy" element={<PrivacyPolicy />} />
                               <Route path="/shipping" element={<ShippingPolicy />} />

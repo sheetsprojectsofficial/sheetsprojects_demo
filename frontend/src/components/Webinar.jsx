@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSettings } from '../context/SettingsContext';
 import { toast } from 'react-toastify';
+import { apiFetch } from '../utils/api';
 
 const Webinar = () => {
   const { getSettingValue } = useSettings();
@@ -30,7 +31,7 @@ const Webinar = () => {
     const fetchWebinarDetails = async () => {
       if (!isEnabled) return;
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/webinar/upcoming`);
+        const response = await apiFetch('/webinar/upcoming');
         const result = await response.json();
         
         if (result.success && result.data) {
@@ -54,7 +55,7 @@ const Webinar = () => {
     setLoading(true);
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/webinar/register`, {
+      const response = await apiFetch('/webinar/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

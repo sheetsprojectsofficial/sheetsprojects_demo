@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAuthState } from 'react-firebase-hooks/auth';
-import { auth } from '../config/firebase';
+import { useAuth } from '../context/AuthContext';
 import { toast, ToastContainer } from 'react-toastify';
 import { useCart } from '../context/CartContext';
+import { apiFetch } from '../utils/api';
 import 'react-toastify/dist/ReactToastify.css';
 
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [user] = useAuthState(auth);
+  const { user } = useAuth();
   const { addToCart, loading: cartLoading } = useCart();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -20,7 +20,7 @@ const ProductDetail = () => {
     const fetchProduct = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/products`);
+        const response = await apiFetch('/products');
         const data = await response.json();
         
         if (data.success && data.products && Array.isArray(data.products)) {
@@ -53,7 +53,7 @@ const ProductDetail = () => {
       
       try {
         const token = await user.getIdToken();
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/orders/user/${encodeURIComponent(user.email)}`, {
+        const response = await apiFetch(`/orders/user/${encodeURIComponent(user.email)}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'

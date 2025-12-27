@@ -4,6 +4,7 @@ import { Plus, Zap, Trash2, Image, Check, X, Circle, Search, Send } from 'lucide
 import { Avatar, Box, IconButton, TextField, Select, MenuItem, Tooltip } from '@mui/material';
 import { useCRM } from '../../hooks/useCRM';
 import { useAuth } from '../../context/AuthContext';
+import { apiFetch } from '../../utils/api';
 import DataGrid from '../common/DataGrid';
 import DeleteContactModal from '../CRM/DeleteContactModal';
 import AddContactModal from '../CRM/AddContactModal';
@@ -62,9 +63,8 @@ const CRMList = () => {
       try {
         setLoadingCampaigns(true);
         const token = await getToken();
-        const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5004';
 
-        const response = await fetch(`${API_BASE_URL}/email-campaigns`, {
+        const response = await apiFetch('/email-campaigns', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -182,7 +182,6 @@ const CRMList = () => {
     try {
       setUpdatingContactId(contactId);
       const token = await getToken();
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5004';
 
       // Find the original entry
       const entry = crmEntries.find(e => e._id === contactId);
@@ -209,8 +208,8 @@ const CRMList = () => {
         [field]: value, // Update the specific field
       };
 
-      const response = await fetch(
-        `${API_BASE_URL}/email-campaigns/crm-entries/${contactId}`,
+      const response = await apiFetch(
+        `/email-campaigns/crm-entries/${contactId}`,
         {
           method: 'PUT',
           headers: {
@@ -242,10 +241,9 @@ const CRMList = () => {
     try {
       setUpdatingContactId(leadId);
       const token = await getToken();
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5004';
 
-      const response = await fetch(
-        `${API_BASE_URL}/email-campaigns/crm-entries/sync-campaign`,
+      const response = await apiFetch(
+        '/email-campaigns/crm-entries/sync-campaign',
         {
           method: 'POST',
           headers: {

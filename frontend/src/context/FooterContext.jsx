@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useSettings } from './SettingsContext';
+import { useTenant } from './TenantContext';
 
 const FooterContext = createContext();
 
@@ -13,15 +14,16 @@ export const useFooter = () => {
 
 export const FooterProvider = ({ children }) => {
   const { settings, getSettingValue } = useSettings();
+  const { hasConfiguredPage, hasFeature, loading: tenantLoading } = useTenant();
   const [footerData, setFooterData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadFooterDataFromGoogleSheets();
-  }, [settings]);
+  }, [settings, tenantLoading]);
 
   const loadFooterDataFromGoogleSheets = () => {
-    if (!settings || Object.keys(settings).length === 0) {
+    if (!settings || Object.keys(settings).length === 0 || tenantLoading) {
       setLoading(true);
       return;
     }
@@ -30,7 +32,7 @@ export const FooterProvider = ({ children }) => {
     const companyInfo = {
       description: getSettingValue('Description', '')
     };
-    
+
     // Main controls
     const quickLinkEnabled = true; // Always enabled now since we're using navigation
     const termsLinkEnabled = true; // Always enabled to show all policy pages
@@ -69,45 +71,65 @@ export const FooterProvider = ({ children }) => {
       }
     });
 
-    quickLinks.push({
-      text: 'About Us',
-      url: '/about',
-      enabled: true
-    });
+    // Only show About Us if configured (has doc ID) AND feature is enabled
+    if (hasConfiguredPage('about') && hasFeature('aboutUs')) {
+      quickLinks.push({
+        text: 'About Us',
+        url: '/about',
+        enabled: true
+      });
+    }
 
-    // Terms Links
-    const termsLinks = [
-      {
+    // Terms Links - Only show pages that have doc IDs configured
+    const termsLinks = [];
+
+    if (hasConfiguredPage('shippingPolicy')) {
+      termsLinks.push({
         text: 'Shipping Policy',
         url: '/shipping',
         enabled: true
-      },
-      {
+      });
+    }
+
+    if (hasConfiguredPage('terms')) {
+      termsLinks.push({
         text: 'Terms & Conditions',
         url: '/terms',
         enabled: true
-      },
-      {
+      });
+    }
+
+    if (hasConfiguredPage('cancellationsRefunds')) {
+      termsLinks.push({
         text: 'Cancellations & Refunds',
         url: '/cancellations-refunds',
         enabled: true
-      },
-      {
+      });
+    }
+
+    if (hasConfiguredPage('privacy')) {
+      termsLinks.push({
         text: 'Privacy Policy',
         url: '/privacy',
         enabled: true
-      },
-      {
+      });
+    }
+
+    if (hasConfiguredPage('refundPolicy')) {
+      termsLinks.push({
         text: 'Refund Policy',
         url: '/refund-policy',
         enabled: true
-      },
-      {
+      });
+    }
+
+    if (hasConfiguredPage('pricingPolicy')) {
+      termsLinks.push({
         text: 'Pricing Policy',
         url: '/pricing-policy',
         enabled: true
-      }
-    ];
+      });
+    }
     
     const facebookURL = getSettingValue('Facebook URL', '');
     const twitterURL = getSettingValue('Twitter URL', '');

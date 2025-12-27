@@ -3,9 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../hooks/useTheme';
 import { useSettings } from '../context/SettingsContext';
+import { apiFetch } from '../utils/api';
 import axios from 'axios';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5004';
 
 const CustomerDashboard = () => {
   const navigate = useNavigate();
@@ -32,7 +31,7 @@ const CustomerDashboard = () => {
       setLoading(true);
       const token = await user.getIdToken();
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/orders/my-purchases`, {
+      const response = await apiFetch('/orders/my-purchases', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

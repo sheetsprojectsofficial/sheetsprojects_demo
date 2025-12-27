@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { apiFetch } from '../utils/api';
 
 const Books = () => {
   const navigate = useNavigate();
@@ -50,7 +51,7 @@ const Books = () => {
       if (filters.isPaid) params.append('isPaid', filters.isPaid);
       if (userId) params.append('userId', userId);
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/books?${params}`);
+      const response = await apiFetch(`/books?${params}`);
       const data = await response.json();
       
       if (data.success) {
@@ -71,7 +72,7 @@ const Books = () => {
   // Fetch categories
   const fetchCategories = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/books/categories`);
+      const response = await apiFetch('/books/categories');
       const data = await response.json();
       
       if (data.success) {
@@ -144,7 +145,7 @@ const Books = () => {
     
     try {
       const endpoint = isLiked ? 'unlike' : 'like';
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/books/${bookId}/${endpoint}`, {
+      const response = await apiFetch(`/books/${bookId}/${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

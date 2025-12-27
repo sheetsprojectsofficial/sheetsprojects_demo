@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuthState } from 'react-firebase-hooks/auth';
-import { auth } from '../config/firebase';
+import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { useTheme } from '../hooks/useTheme';
 import { apiFetch, getApiUrl } from '../utils/api';
@@ -11,7 +10,7 @@ const API_URL = getApiUrl();
 const Products = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [user] = useAuthState(auth);
+  const { user } = useAuth();
   const { settings, getSettingValue } = useSettings();
   const { getThemeClasses } = useTheme();
   const themeClasses = getThemeClasses();

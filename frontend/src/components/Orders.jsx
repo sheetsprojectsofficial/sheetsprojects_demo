@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
-import { 
-  Modal, 
-  Box, 
-  Typography, 
-  TextField, 
-  Button, 
+import {
+  Modal,
+  Box,
+  Typography,
+  TextField,
+  Button,
   IconButton,
   Fade,
   Backdrop
 } from '@mui/material';
 import { Close as CloseIcon } from '@mui/icons-material';
+import { apiFetch } from '../utils/api';
 
 const Orders = () => {
   const { user } = useAuth();
@@ -43,7 +44,7 @@ const Orders = () => {
         search: searchTerm
       });
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/orders?${queryParams}`, {
+      const response = await apiFetch(`/orders?${queryParams}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -73,7 +74,7 @@ const Orders = () => {
     try {
       const token = await user.getIdToken();
       
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/orders/${orderId}/status`, {
+      const response = await apiFetch(`/orders/${orderId}/status`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -106,7 +107,7 @@ const Orders = () => {
     try {
       const token = await user.getIdToken();
       
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/orders/${orderId}/solution/enable`, {
+      const response = await apiFetch(`/orders/${orderId}/solution/enable`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -134,14 +135,14 @@ const Orders = () => {
         const order = orders.find(o => o.orderId === orderId);
         if (order?.itemType === 'book' && order?.bookInfo?.bookId) {
           try {
-            await fetch(`${import.meta.env.VITE_API_URL}/books/admin/${order.bookInfo.bookId}`, {
+            await apiFetch(`/books/admin/${order.bookInfo.bookId}`, {
               method: 'PUT',
               headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
               },
-              body: JSON.stringify({ 
-                shareableLink: driveUrl.trim() 
+              body: JSON.stringify({
+                shareableLink: driveUrl.trim()
               })
             });
           } catch (updateError) {
@@ -162,7 +163,7 @@ const Orders = () => {
     try {
       const token = await user.getIdToken();
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/orders/${orderId}/solution/disable`, {
+      const response = await apiFetch(`/orders/${orderId}/solution/disable`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -206,7 +207,7 @@ const Orders = () => {
     try {
       const token = await user.getIdToken();
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/orders/${orderId}`, {
+      const response = await apiFetch(`/orders/${orderId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -242,7 +243,7 @@ const Orders = () => {
     // For books without a current URL, try to fetch the book's shareableLink or construct drive folder link
     if (!finalUrl && order?.itemType === 'book' && order?.bookInfo?.bookId) {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/books/id/${order.bookInfo.bookId}`);
+        const response = await apiFetch(`/books/id/${order.bookInfo.bookId}`);
         const data = await response.json();
         
         if (data.success && data.book) {
@@ -283,7 +284,7 @@ const Orders = () => {
     try {
       const token = await user.getIdToken();
       
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/orders/solution/sync-from-sheets`, {
+      const response = await apiFetch(`/orders/solution/sync-from-sheets`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

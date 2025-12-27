@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { QRCodeSVG } from 'qrcode.react';
+import { apiFetch } from '../../utils/api';
 
 const PurplishPortfolio = () => {
   const [portfolioData, setPortfolioData] = useState({});
@@ -28,7 +29,7 @@ const PurplishPortfolio = () => {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/portfolio/dynamic`);
+      const response = await apiFetch('/portfolio/dynamic');
       const data = await response.json();
 
       if (data.success) {

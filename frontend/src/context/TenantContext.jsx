@@ -6,6 +6,24 @@ const TenantContext = createContext(null);
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5004/api';
 
+// Check if Firebase env vars are configured
+const hasFirebaseEnvConfig = () => {
+  return !!(
+    import.meta.env.VITE_FIREBASE_API_KEY &&
+    import.meta.env.VITE_FIREBASE_PROJECT_ID
+  );
+};
+
+// Get Firebase config from env vars (only fields actually used)
+const getFirebaseEnvConfig = () => {
+  return {
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET
+  };
+};
+
 // Get tenant slug from environment or URL
 const getTenantSlug = () => {
   // Priority 1: Environment variable
@@ -44,15 +62,28 @@ export const TenantProvider = ({ children }) => {
 
   useEffect(() => {
     const loadTenantConfig = async () => {
-      if (!tenantSlug) {
-        // No tenant - use default configuration
-        setLoading(false);
-        return;
-      }
-
       try {
         setLoading(true);
         setError(null);
+
+        // PRIORITY 1: Check if Firebase env vars are configured (main website mode)
+        if (hasFirebaseEnvConfig()) {
+          console.log('[TenantContext] Using Firebase config from environment variables');
+          const envConfig = getFirebaseEnvConfig();
+          await initializeTenantFirebase(envConfig, 'env-config');
+          setLoading(false);
+          return;
+        }
+
+        // PRIORITY 2: Use tenant slug to fetch config from API
+        if (!tenantSlug) {
+          console.error('[TenantContext] No Firebase env vars and no tenant slug configured');
+          setError('Authentication not configured. Set VITE_FIREBASE_* env vars or VITE_TENANT_SLUG.');
+          setLoading(false);
+          return;
+        }
+
+        console.log('[TenantContext] Fetching config for tenant:', tenantSlug);
 
         // Fetch tenant config from API
         const response = await fetch(`${API_BASE_URL}/tenants/config`, {
@@ -71,15 +102,19 @@ export const TenantProvider = ({ children }) => {
           throw new Error(data.message || 'Tenant not found');
         }
 
+        console.log('[TenantContext] Received tenant config:', data.config?.name);
         setTenantConfig(data.config);
 
         // Initialize Firebase for this tenant if config exists
-        if (data.config.firebase) {
-          await initializeTenantFirebase(data.config.firebase);
+        if (data.config.firebase && data.config.firebase.apiKey) {
+          await initializeTenantFirebase(data.config.firebase, `tenant_${tenantSlug}`);
+        } else {
+          console.error('[TenantContext] No Firebase config found for tenant:', tenantSlug);
+          setError('Firebase not configured for this tenant');
         }
 
       } catch (err) {
-        console.error('Error loading tenant config:', err);
+        console.error('[TenantContext] Error loading config:', err);
         setError(err.message);
       } finally {
         setLoading(false);
@@ -96,35 +131,45 @@ export const TenantProvider = ({ children }) => {
     };
   }, [tenantSlug]);
 
-  const initializeTenantFirebase = async (firebaseConfig) => {
+  const initializeTenantFirebase = async (firebaseConfig, appName = 'default') => {
     try {
       // Check if app already exists
       const existingApps = getApps();
-      const existingApp = existingApps.find(app => app.name === `tenant_${tenantSlug}`);
+      const existingApp = existingApps.find(app => app.name === appName || app.name === '[DEFAULT]');
 
       if (existingApp) {
+        console.log('[TenantContext] Using existing Firebase app:', existingApp.name);
         setTenantFirebaseApp(existingApp);
         setTenantAuth(getAuth(existingApp));
         return;
       }
 
-      // Initialize new Firebase app for tenant
-      const app = initializeApp({
-        apiKey: firebaseConfig.apiKey,
-        authDomain: firebaseConfig.authDomain,
-        projectId: firebaseConfig.projectId,
-        storageBucket: firebaseConfig.storageBucket,
-        messagingSenderId: firebaseConfig.messagingSenderId,
-        appId: firebaseConfig.appId
-      }, `tenant_${tenantSlug}`);
+      console.log('[TenantContext] Initializing new Firebase app:', appName);
+
+      // Initialize new Firebase app
+      // Use default app name for env-config, named app for tenants
+      const app = appName === 'env-config'
+        ? initializeApp({
+            apiKey: firebaseConfig.apiKey,
+            authDomain: firebaseConfig.authDomain,
+            projectId: firebaseConfig.projectId,
+            storageBucket: firebaseConfig.storageBucket
+          })
+        : initializeApp({
+            apiKey: firebaseConfig.apiKey,
+            authDomain: firebaseConfig.authDomain,
+            projectId: firebaseConfig.projectId,
+            storageBucket: firebaseConfig.storageBucket
+          }, appName);
 
       const auth = getAuth(app);
       setTenantFirebaseApp(app);
       setTenantAuth(auth);
 
-      console.log('Tenant Firebase initialized:', tenantSlug);
+      console.log('[TenantContext] Firebase initialized successfully:', appName);
     } catch (err) {
-      console.error('Error initializing tenant Firebase:', err);
+      console.error('[TenantContext] Error initializing Firebase:', err);
+      setError('Failed to initialize authentication: ' + err.message);
       throw err;
     }
   };
@@ -194,6 +239,38 @@ export const TenantProvider = ({ children }) => {
     return tenantConfig?.razorpayKeyId || import.meta.env.VITE_RAZORPAY_KEY_ID;
   };
 
+  // Check if a specific page is configured (has doc ID)
+  // For non-tenant mode, all pages are considered configured
+  const hasConfiguredPage = (pageName) => {
+    // If not in tenant mode (main website), all pages are available
+    if (!tenantSlug) {
+      return true;
+    }
+    // If tenant config hasn't loaded yet, return false
+    if (!tenantConfig) {
+      return false;
+    }
+    // Check if the page is configured
+    return tenantConfig.configuredPages?.[pageName] === true;
+  };
+
+  // Get all configured pages
+  const getConfiguredPages = () => {
+    if (!tenantSlug) {
+      // Main website - all pages configured
+      return {
+        about: true,
+        shippingPolicy: true,
+        terms: true,
+        cancellationsRefunds: true,
+        privacy: true,
+        refundPolicy: true,
+        pricingPolicy: true
+      };
+    }
+    return tenantConfig?.configuredPages || {};
+  };
+
   const value = {
     tenantSlug,
     tenantConfig,
@@ -206,6 +283,8 @@ export const TenantProvider = ({ children }) => {
     getEnabledFeatures,
     getBranding,
     getRazorpayKey,
+    hasConfiguredPage,
+    getConfiguredPages,
     isTenantMode: !!tenantSlug
   };
 

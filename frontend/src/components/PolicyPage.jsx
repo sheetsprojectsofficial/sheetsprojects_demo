@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useTenant } from '../context/TenantContext';
 
 const PolicyPage = ({ policyType, defaultTitle }) => {
+  const { fetchWithTenant } = useTenant();
   const [content, setContent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -10,7 +12,8 @@ const PolicyPage = ({ policyType, defaultTitle }) => {
     const fetchPolicyContent = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/policy-docs/${policyType}`);
+        // Use fetchWithTenant to include tenant header
+        const response = await fetchWithTenant(`${import.meta.env.VITE_API_URL}/policy-docs/${policyType}`);
         const data = await response.json();
 
         if (data.success) {
@@ -28,7 +31,7 @@ const PolicyPage = ({ policyType, defaultTitle }) => {
     };
 
     fetchPolicyContent();
-  }, [policyType]);
+  }, [policyType, fetchWithTenant]);
 
   if (loading) {
     return (

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { apiFetch } from '../utils/api';
 
 const AdminProducts = () => {
   const [products, setProducts] = useState([]);
@@ -14,7 +15,7 @@ const AdminProducts = () => {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/products`);
+      const response = await apiFetch('/products');
       const data = await response.json();
       
       if (data.success) {

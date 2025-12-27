@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
+import { apiFetch } from '../../utils/api';
 import BasicPortfolio from './BasicPortfolio';
 import IntermediatePortfolio from './IntermediatePortfolio';
 import PurplishPortfolio from './PurplishPortfolio';
@@ -19,7 +20,7 @@ const DynamicPortfolio = () => {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/portfolio/portfolio-data`);
+      const response = await apiFetch('/portfolio/portfolio-data');
       const data = await response.json();
 
       if (data.templateType) {
